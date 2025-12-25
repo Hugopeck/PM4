@@ -54,6 +54,11 @@
     "refresh_s": 2.0,
     "price_move_requote_ticks": 1
   },
+  "logging": {
+    "level": "DEBUG",
+    "enable_performance": true,
+    "enable_context_tracking": false
+  },
   "log_path": "./data/mm_events.jsonl",
   "calib_path": "./data/warm_calibration.json"
 }
