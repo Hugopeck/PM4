@@ -13,8 +13,13 @@ try:
     from py_clob_client.client import ClobClient
     from py_clob_client.clob_types import (
         OrderArgs, OrderType, OpenOrderParams,
-        AssetType, BalanceAllowanceParams, ApiKeyCreds, TradeParams
+        AssetType, BalanceAllowanceParams, TradeParams
     )
+    # Try newer API first, fall back to older
+    try:
+        from py_clob_client.clob_types import ApiCreds as ApiKeyCreds
+    except ImportError:
+        from py_clob_client.clob_types import ApiKeyCreds
     from py_clob_client.order_builder.constants import BUY, SELL
 except ImportError:
     print("Error: py-clob-client not found. Install with: pip install py-clob-client")

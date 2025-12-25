@@ -1,0 +1,19 @@
+[run]
+source = pm4
+omit =
+    pm4/__pycache__/*
+    tests/*
+    venv/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    class .*\bProtocol\):
+    @(abc\.)?abstractmethod
+
+[html]
+directory = htmlcov

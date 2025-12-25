@@ -3,7 +3,7 @@
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A high-frequency, algorithmic market making bot for Polymarket's prediction markets, built with sophisticated risk management and real-time market data processing.
+A high-frequency, algorithmic market making bot for prediction markets, built with risk management and self-calibration from real-time market data processing, inspired from the Avellaneda-Stoikov model.
 
 ## 📈 Overview
 
@@ -105,7 +105,7 @@ Edit `config.json` to specify target markets and risk parameters:
 
 ```bash
 # Start the market maker
-python pm4.py config.json
+python -m pm4 config.json
 
 # The bot will:
 # 1. Connect to Polymarket WebSocket feeds
@@ -184,51 +184,6 @@ python pm4.py config.json
 }
 ```
 
-## 📊 Trading Algorithms
-
-### Kelly Criterion Position Sizing
-
-PM4 uses the Kelly Criterion for optimal position sizing:
-
-```
-q_max = (B_side × time_factor) / (p_opp × (1 + slippage_buffer))
-```
-
-Where:
-- `q_max`: Maximum position size for optimal growth
-- `B_side`: Capital allocated per side
-- `time_factor`: Time-based risk decay
-- `p_opp`: Probability of adverse outcome
-- `slippage_buffer`: Execution cost adjustment
-
-### Dynamic Spread Scaling
-
-Bid-ask spreads scale with position size and volatility:
-
-```
-γ = 1 / (1 - |q̂|)ᵧₐ
-```
-
-Where:
-- `γ`: Spread multiplier (> 1.0)
-- `q̂`: Normalized position size [-1, 1]
-- `γₐ`: Aggressiveness parameter
-
-### Volatility Estimation
-
-Multi-timeframe exponential moving averages:
-
-```python
-# Fast EMA (short-term volatility)
-ema_fast = ema(prev_fast, abs_return, τ_fast, dt)
-
-# Slow EMA (baseline volatility)
-ema_slow = ema(prev_slow, abs_return, τ_slow, dt)
-
-# Volatility ratio for stress detection
-J = ema_fast / ema_slow
-```
-
 ## 🔍 Logging & Debugging
 
 ### Log Levels
@@ -284,31 +239,6 @@ mypy pm4/                    # Type checking
 pylint pm4/                  # Code quality
 black pm4/ --check          # Formatting check
 ```
-
-### Project Structure
-
-```
-pm4/
-├── __init__.py           # Package initialization
-├── main.py              # Entry point and configuration loading
-├── types.py             # Configuration dataclasses and types
-├── utils.py             # Mathematical utilities and helpers
-├── logging.py           # Logging system with debugging features
-├── adapters.py          # Exchange API interfaces
-├── market_data.py       # Real-time market data processing
-└── trading.py           # Core trading algorithms
-```
-
-### Key Classes
-
-| Class | Module | Purpose |
-|-------|--------|---------|
-| `MarketMakerBot` | `trading.py` | Main orchestration and control |
-| `Indicators` | `trading.py` | Risk management and volatility estimation |
-| `Quoter` | `trading.py` | Order generation and pricing |
-| `PolymarketAdapter` | `adapters.py` | Exchange API integration |
-| `MarketData` | `market_data.py` | Real-time data processing |
-| `DebugLogger` | `logging.py` | Enhanced logging with levels |
 
 ## 🚨 Production Deployment
 
