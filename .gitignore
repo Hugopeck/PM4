@@ -4,3 +4,9 @@ __pycache__/
 data/
 *.jsonl
 .DS_Store
+bounded_lambda.md
+Q_max.md
+sigma_to_lambda_rel.md
+tunning_per_marchetype.md
+Marchetypes.md
+PM4.md
