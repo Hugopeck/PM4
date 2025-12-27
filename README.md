@@ -37,6 +37,30 @@ Where:
 - **λ**: Structural market risk multiplier (bounded [1,2])
 - **σ**: Toxicity multiplier from real-time adverse selection detection
 
+**Optimal Half-Spread (PM4 Core):**
+```
+Δ_risk = c_risk × γ × λ × σ
+
+Δ_liq,b = (1/γ) × ln(1 + γ/κ_b)
+Δ_liq,a = (1/γ) × ln(1 + γ/κ_a)
+
+Δ_b = Δ_risk + Δ_liq,b
+Δ_a = Δ_risk + Δ_liq,a
+
+Δ_tot = Δ_a + Δ_b
+```
+
+Where:
+- **Δ_risk**: Inventory-independent risk term (base spread width in logit units)
+- **c_risk**: Base spread scale parameter (typically 0.2 in logit units)
+- **γ**: Dynamic solvency fear multiplier (≥ 1)
+- **λ**: Structural market risk multiplier (bounded [1,2])
+- **σ**: Toxicity multiplier from real-time adverse selection detection (≥ 1)
+- **Δ_liq,b/Δ_liq,a**: Liquidity terms capturing fill intensity on bid/ask sides
+- **κ_b/κ_a**: Effective order arrival intensity parameters per side (regime-dependent)
+- **Δ_b/Δ_a**: Final half-spreads for bid and ask quotes (in logit space)
+- **Δ_tot**: Total spread width (sum of bid and ask half-spreads)
+
 ### Key Features
 
 - 🧮 **Kelly-Optimal Sizing**: Position limits based on opposite-side hedging costs and time decay
