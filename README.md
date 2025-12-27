@@ -1,9 +1,9 @@
-# PM4 - Prediction Market Avellaneda-Stoikov Model
+# PM4 - Prediction Market Maker Model
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-A high-frequency market making bot implementing the **PM4 model**: an Avellaneda-Stoikov inspired quantitative framework specifically adapted for prediction markets. Combines Kelly-optimal position sizing, real-time toxicity detection, and marchetype-aware structural risk adjustment.
+A high-frequency market making bot implementing the **PM4 model**: an Avellaneda-Stoikov inspired quantitative framework specifically adapted for prediction markets. Combines position sizing, real-time toxicity detection, and marchetype-aware structural risk adjustment.
 
 ## 📈 Overview
 
@@ -84,7 +84,7 @@ PM4/
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Hugopeck/PM4
 cd pm4
 
 # Install dependencies
@@ -192,7 +192,7 @@ python -m pm4 config.json
 ```json
 {
   "quote": {
-    "c_risk": 0.06,             // Base spread scale in logit units (Δ_risk = c_risk × γ × λ × σ)
+    "c_risk": 0.2,             // Base spread scale in logit units (Δ_risk = c_risk × γ × λ × σ)
     "kappa0": 1.0,              // Liquidity intensity parameter (unused in current implementation)
     "min_order_size": 1.0,      // Minimum order size in shares
     "max_order_notional_side": 100.0,  // Max notional exposure per side ($)

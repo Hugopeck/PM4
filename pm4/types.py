@@ -47,7 +47,7 @@ class RiskConfig:
 @dataclass
 class QuoteConfig:
     """Quote generation and ladder configuration."""
-    c_risk: float = 0.06
+    c_risk: float = 0.2
     kappa0: float = 1.0
     rate_ref_per_s: float = 0.05
     min_half_spread_prob: float = 0.01

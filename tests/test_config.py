@@ -145,7 +145,7 @@ class TestQuoteConfig:
         """Test QuoteConfig with default values."""
         config = QuoteConfig()
 
-        assert config.c_risk == 0.06
+        assert config.c_risk == 0.2
         assert config.kappa0 == 1.0
         assert config.rate_ref_per_s == 0.05
         assert config.min_half_spread_prob == 0.01
@@ -259,7 +259,7 @@ class TestConfigLoading:
         # Check defaults are applied
         assert config.warmup.dt_sample_s == 5.0
         assert config.risk.bankroll_B == 500.0
-        assert config.quote.c_risk == 0.06
+        assert config.quote.c_risk == 0.2
         assert config.logging.level == "INFO"
 
     @pytest.mark.unit
@@ -374,4 +374,4 @@ class TestConfigLoading:
         # Should have default values
         assert config.warmup.dt_sample_s == 5.0
         assert config.risk.bankroll_B == 500.0
-        assert config.quote.c_risk == 0.06
+        assert config.quote.c_risk == 0.2

@@ -40,7 +40,7 @@
     "sigma_tau_down_s": 90.0
   },
   "quote": {
-    "c_risk": 0.06,
+    "c_risk": 0.2,
     "kappa0": 1.0,
     "rate_ref_per_s": 0.05,
     "min_half_spread_prob": 0.01,
