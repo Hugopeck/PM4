@@ -1,6 +1,7 @@
 # PM4 - Prediction Market Maker Model
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A high-frequency market making bot implementing the **PM4 model**: an Avellaneda-Stoikov inspired quantitative framework specifically adapted for prediction markets. Combines position sizing, real-time toxicity detection, and marchetype-aware structural risk adjustment.

@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.1] - 2024-12-29
+
+### Added
+- `pm4.market_analyzer` module for automated market suitability analysis
+- `pm4.market_config_helper` module for guided configuration generation
+- Date conversion utilities in `pm4.utils` (`date_to_timestamp`, `timestamp_to_date`)
+- Enhanced `config.json` with comprehensive parameter documentation and ranges
+- Market analysis integration in `DRY_RUN_GUIDE.md`
+- Interactive configuration setup workflow
+
+### Changed
+- Updated README.md with new workflow and tool documentation
+- Enhanced dry-run guide with automated market analysis options
+- Improved configuration safety with detailed parameter ranges
+
+### Technical Details
+- Market analyzer provides objective scoring (volume, traders, activity, time-to-resolution)
+- Configuration helper extracts market slugs from Polymarket URLs
+- Date utilities support multiple formats (YYYY-MM-DD, Month DD, YYYY, etc.)
+- Comprehensive config documentation prevents misconfiguration
+
 ## [0.1.0] - 2024-12-29
 
 ### Added
@@ -26,3 +47,26 @@
 - Added full state persistence for calibration data including EMAs, returns deque, and timestamps
 - Implemented `DryRunAdapter` for safe quote testing
 - Improved error handling and validation throughout the calibration and trading pipeline
+
+---
+
+## Version Management
+
+PM4 follows [Semantic Versioning](https://semver.org/):
+
+- **MAJOR** version for incompatible API changes
+- **MINOR** version for backwards-compatible functionality additions
+- **PATCH** version for backwards-compatible bug fixes
+
+### Current Version: 0.1.1
+
+**Version History:**
+- `0.1.x`: Human-in-the-loop workflow and market analysis tools
+- Future `0.2.x`: Production hardening and performance optimizations
+- Future `1.0.x`: Stable API for production deployment
+
+### Version Update Process
+1. Update version in `pm4/__init__.py`
+2. Add changelog entry in `CHANGELOG.md`
+3. Update version badges in `README.md`
+4. Tag release: `git tag v0.1.1 && git push --tags`

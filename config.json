@@ -1,5 +1,8 @@
 {
+  "_comment": "PM4 Market Maker Configuration - See parameter ranges below",
+
   "market": {
+    "_comment": "Market-specific configuration - Update for each market",
     "market": "0x_CONDITION_ID",
     "asset_id_yes": "0x_YES_TOKEN_ID",
     "asset_id_no": "0x_NO_TOKEN_ID",
@@ -7,58 +10,70 @@
     "resolve_ts_ms": 1720000000000,
     "wss_url": "wss://ws-subscriptions-clob.polymarket.com/ws/market"
   },
+
   "warmup": {
-    "dt_sample_s": 5.0,
-    "min_return_samples": 360,
-    "max_warmup_s": 7200,
-    "tau_fast_s": 30.0,
-    "tau_slow_s": 1800.0,
-    "markout_h1_s": 10.0,
-    "markout_h2_s": 60.0
+    "_comment": "Calibration phase settings - controls data collection quality",
+    "dt_sample_s": 5.0,              // 1-10: Sample interval in seconds (higher = less noise but slower)
+    "min_return_samples": 360,       // 120-720: Min samples needed (360 = 30min @ 5s intervals)
+    "max_warmup_s": 7200,            // 1800-7200: Max warmup time in seconds (2 hours timeout)
+    "tau_fast_s": 30.0,              // 10-60: Fast EMA time constant for short-term volatility
+    "tau_slow_s": 1800.0,            // 600-3600: Slow EMA time constant (30min baseline)
+    "markout_h1_s": 10.0,            // 5-30: Short-term P&L analysis horizon
+    "markout_h2_s": 60.0             // 30-300: Long-term P&L analysis horizon
   },
+
   "risk": {
-    "bankroll_B": 500.0,
-    "n_plays": 3,
-    "eta_time": 0.5,
-    "slippage_buffer": 0.10,
-    "gamma_a": 1.0,
-    "gamma_max": 50.0,
-    "lambda_min": 0.8,
-    "lambda_max": 2.0,
-    "beta_p": 0.7,
-    "alpha_U": 0.5,
-    "U_ref": 50.0,
-    "w_A": 1.0,
-    "w_L": 1.0,
-    "s_scale": 1.0,
-    "I_max": 3.0,
-    "c_tox": 1.0,
-    "c_sigma": 1.0,
-    "nu_sigma": 1.4,
-    "sigma_max": 6.0,
-    "sigma_tau_up_s": 10.0,
-    "sigma_tau_down_s": 90.0
+    "_comment": "Risk management parameters - core PM4 model controls",
+    "bankroll_B": 50.0,              // 10-100: Bankroll per market (USD) - START SMALL for testing
+    "n_plays": 3,                    // 1-10: Concurrent markets (diversification)
+    "eta_time": 0.5,                 // 0.1-1.0: Time decay exponent (higher = more conservative near resolution)
+    "slippage_buffer": 0.10,         // 0.05-0.20: Execution cost buffer (10% = 10% slippage protection)
+    "gamma_a": 1.0,                  // 0.5-2.0: Inventory fear aggressiveness (higher = wider spreads)
+    "gamma_max": 50.0,               // 10-100: Maximum spread multiplier (circuit breaker)
+    "lambda_min": 0.8,               // 0.5-1.0: Minimum market regime factor
+    "lambda_max": 2.0,               // 1.5-3.0: Maximum market regime factor (aggressive in good conditions)
+    "beta_p": 0.7,                   // 0.3-1.0: Probability weighting (higher = more sensitive to p extremes)
+    "alpha_U": 0.5,                  // 0.2-0.8: Liquidity weighting factor
+    "U_ref": 50.0,                   // 10-100: Reference liquidity level (trades per hour)
+    "w_A": 1.0,                      // 0.5-2.0: Probability factor weight
+    "w_L": 1.0,                      // 0.5-2.0: Liquidity factor weight
+    "s_scale": 1.0,                  // 0.5-2.0: Regime scaling factor
+    "I_max": 3.0,                    // 1-5: Maximum trading intensity multiplier
+    "c_tox": 1.0,                    // 0.5-2.0: Toxicity coefficient (adverse selection weight)
+    "c_sigma": 1.0,                  // 0.5-2.0: Volatility coefficient
+    "nu_sigma": 1.4,                 // 1.0-2.0: Volatility exponent (power law scaling)
+    "sigma_max": 6.0,                // 3-10: Maximum volatility multiplier (circuit breaker)
+    "sigma_tau_up_s": 10.0,          // 5-30: Fast volatility response time (seconds)
+    "sigma_tau_down_s": 90.0         // 30-300: Slow volatility response time (seconds)
   },
+
   "quote": {
-    "c_risk": 0.2,
-    "kappa0": 1.0,
-    "rate_ref_per_s": 0.05,
-    "min_half_spread_prob": 0.01,
-    "max_half_spread_logit": 1.5,
-    "ladder_decay": 0.8,
-    "ladder_step_mult": 0.5,
-    "ladder_min_step_logit": 0.05,
-    "ladder_max_levels": 5,
-    "min_order_size": 1.0,
-    "max_order_notional_side": 100.0,
-    "refresh_s": 2.0,
-    "price_move_requote_ticks": 1
+    "_comment": "Order generation and sizing parameters",
+    "c_risk": 0.2,                   // 0.1-0.5: Base risk spread coefficient (logit units)
+    "kappa0": 1.0,                   // 0.5-2.0: Base market impact parameter
+    "rate_ref_per_s": 0.05,          // 0.01-0.2: Reference trade rate (trades/second)
+    "min_half_spread_prob": 0.01,    // 0.005-0.02: Minimum half-spread (1% = 0.01 in probability)
+    "max_half_spread_logit": 1.5,    // 1.0-3.0: Maximum half-spread in logit space
+    "ladder_decay": 0.8,             // 0.7-0.9: Size decay between order levels (0.8 = 20% smaller each level)
+    "ladder_step_mult": 0.5,         // 0.3-0.7: Step size multiplier for ladder spacing
+    "ladder_min_step_logit": 0.05,   // 0.02-0.1: Minimum step size in logit space
+    "ladder_max_levels": 5,          // 3-8: Maximum order levels per side
+    "min_order_size": 1.0,           // 0.1-5.0: Minimum order size (token units)
+    "max_order_notional_side": 100.0, // 50-500: Maximum notional exposure per side (USD)
+    "refresh_s": 2.0,                // 1-5: Quote refresh interval (seconds)
+    "price_move_requote_ticks": 1    // 1-5: Price ticks to trigger full requote
   },
+
   "logging": {
-    "level": "DEBUG",
-    "enable_performance": true,
-    "enable_context_tracking": false
+    "_comment": "Logging and debugging configuration",
+    "level": "DEBUG",                // DEBUG, INFO, WARNING, ERROR, CRITICAL
+    "enable_performance": true,      // true/false: Enable performance tracing
+    "enable_context_tracking": false // true/false: Enable error context tracking
   },
-  "log_path": "./data/mm_events.jsonl",
-  "calib_path": "./data/warm_calibration.json"
+
+  "_file_paths": {
+    "_comment": "Output file locations",
+    "log_path": "./data/mm_events.jsonl",
+    "calib_path": "./data/warm_calibration.json"
+  }
 }

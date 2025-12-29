@@ -3,6 +3,7 @@ Utility functions for PM4 market maker.
 """
 import math
 import time
+from datetime import datetime
 from typing import Union
 
 
@@ -44,3 +45,51 @@ def ceil_to_tick(p: float, tick: float) -> float:
 def fmt(x: Union[int, float], nd: int = 4) -> str:
     """Format number with specified decimal places."""
     return f"{x:.{nd}f}"
+
+
+def date_to_timestamp(date_str: str) -> int:
+    """Convert date string to Unix timestamp in milliseconds.
+
+    Supports multiple date formats:
+    - YYYY-MM-DD (2025-01-01)
+    - YYYY-MM-DD HH:MM:SS (2025-01-01 12:00:00)
+    - Month DD, YYYY (January 1, 2025)
+    - Mon DD, YYYY (Jan 1, 2025)
+
+    Args:
+        date_str: Date string in supported format
+
+    Returns:
+        Unix timestamp in milliseconds
+
+    Raises:
+        ValueError: If date format is not recognized
+    """
+    formats = [
+        "%Y-%m-%d",           # 2025-01-01
+        "%Y-%m-%d %H:%M:%S",  # 2025-01-01 12:00:00
+        "%B %d, %Y",          # January 1, 2025
+        "%b %d, %Y",          # Jan 1, 2025
+    ]
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(date_str, fmt)
+            return int(dt.timestamp() * 1000)
+        except ValueError:
+            continue
+
+    raise ValueError(f"Could not parse date: {date_str}. Supported formats: {formats}")
+
+
+def timestamp_to_date(ts_ms: int) -> str:
+    """Convert Unix timestamp in milliseconds to readable date string.
+
+    Args:
+        ts_ms: Unix timestamp in milliseconds
+
+    Returns:
+        Date string in YYYY-MM-DD HH:MM:SS format
+    """
+    dt = datetime.fromtimestamp(ts_ms / 1000)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
