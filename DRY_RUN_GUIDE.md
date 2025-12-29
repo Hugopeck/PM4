@@ -1,16 +1,14 @@
-# PM4 Dry-Run Guide: Human-in-the-Loop Safety Validation
+# PM4 Automated Market Analysis & Dry-Run Guide
 
 ## 🎯 **Purpose**
 
-This guide walks you through a comprehensive dry-run process to validate your PM4 market making bot **before risking real capital**. The goal is to manually verify:
+This guide shows you how to use PM4's **automated market analysis tools** for safe, data-driven market making. Instead of manual market evaluation, you'll use three powerful tools:
 
-- ✅ Calibration accuracy and market conditions
-- ✅ Mathematical model integrity
-- ✅ Quote generation logic
-- ✅ Risk management sanity
-- ✅ Real-world market alignment
+1. **`market_analyzer`** - Analyzes market suitability objectively
+2. **`market_config_helper`** - Generates complete configurations automatically
+3. **`dry-run workflow`** - Validates your setup before going live
 
-**Why this matters**: Market making involves complex risk models. A 5-minute dry-run can prevent costly mistakes.
+**Result**: From market discovery to live trading in under 10 minutes with complete safety validation.
 
 ---
 
@@ -18,7 +16,7 @@ This guide walks you through a comprehensive dry-run process to validate your PM
 
 ### Environment Setup
 ```bash
-# Ensure you have these environment variables set
+# Set your Polymarket credentials (required for all tools)
 export PK="your_private_key_here"
 export CLOB_API_KEY="your_api_key"          # Optional but recommended
 export CLOB_SECRET="your_api_secret"        # Optional but recommended
@@ -26,149 +24,450 @@ export CLOB_PASS_PHRASE="your_passphrase"    # Optional but recommended
 export FUNDER_ADDRESS="your_funder_address"  # Optional for gasless trading
 ```
 
-### Available Tools
-PM4 now includes automated tools to help with market analysis and configuration:
+### PM4 Analysis Tools Overview
 
+PM4 provides **three automated tools** that transform manual market analysis into a 5-minute automated process:
+
+| Tool | Purpose | Input | Output |
+|------|---------|-------|--------|
+| `market_analyzer` | **Market Evaluation** | URL or slug | Suitability score + recommendation |
+| `market_config_helper` *(CLI)* | **Config Generation** | URL + options | Complete config.json file |
+| `market_config_helper --interactive` | **Guided Setup** | Interactive prompts | Step-by-step config creation |
+
+---
+
+## 🛠️ **Tool Details & Usage**
+
+### **1. Market Analyzer (`pm4.market_analyzer`)**
+
+**Purpose**: Objectively evaluates if a market is suitable for PM4 trading.
+
+**Usage:**
 ```bash
-# 🧮 MARKET ANALYZER: Automatically evaluate market suitability for PM4 trading
-# This tool analyzes volume, liquidity, trader activity, and market conditions
-# to give you an objective recommendation before you invest time configuring
-# Accepts both full URLs and simple market slugs for maximum flexibility
-python -m pm4.market_analyzer "https://polymarket.com/market/ethereum-to-10k-before-2025"
-# OR simply: python -m pm4.market_analyzer "ethereum-to-10k-before-2025"
+# Analyze any Polymarket market
+python -m pm4.market_analyzer "https://polymarket.com/market/will-ethereum-reach-10k-before-2025"
 
-# ⚙️ CONFIG HELPER (URL Mode): Extract market info from Polymarket URLs
-# Automatically fetches market details and generates a complete config.json template
-# Saves you from manually looking up condition IDs, asset IDs, and timestamps
-python -m pm4.market_config_helper "https://polymarket.com/market/ethereum-to-10k-before-2025"
+# Or use just the slug (both work!)
+python -m pm4.market_analyzer "will-ethereum-reach-10k-before-2025"
+```
 
-# 🎯 INTERACTIVE CONFIG HELPER: Guided step-by-step configuration
-# Walks you through selecting a market and setting up your config interactively
-# Perfect for first-time users who want hand-holding through the process
+**What it analyzes:**
+- 📊 **Volume**: 24h trading volume ($50k+ recommended)
+- 👥 **Traders**: Active participants (100+ recommended)
+- ⏰ **Activity**: Recent trades (within 2 hours preferred)
+- 📅 **Time Horizon**: Days until resolution (30+ days preferred)
+- 💰 **Price Position**: Current price vs extremes (0.15-0.85 preferred)
+
+**Scoring System:**
+- **RECOMMENDED** (5-7 points): Safe for PM4 trading
+- **CONDITIONAL** (3-4 points): May work with caution
+- **NOT RECOMMENDED** (0-2 points): Avoid this market
+
+**Example Output:**
+```
+Analyzing market: will-ethereum-reach-10k-before-2025
+==================================================
+MARKET ANALYSIS: will-ethereum-reach-10k-before-2025
+==================================================
+Condition ID: 0x1234567890abcdef
+Current Price: 0.350
+24h Volume: $125,430
+Active Traders: 234
+Last Trade: 0.8 hours ago
+Time to Resolution: 245 days
+Price Range (24h): 0.330 - 0.380
+
+RECOMMENDATION: RECOMMENDED
+
+DETAILED ANALYSIS:
+  ✓ Excellent volume: $125,430
+  ✓ High trader count: 234
+  ✓ Moderate time horizon: 245 days
+  ✓ Price in good range: 0.35
+
+✅ SUITABLE FOR PM4 MARKET MAKING
+  Proceed with warmup and dry-run testing
+```
+
+### **2. Market Config Helper CLI (`pm4.market_config_helper`)**
+
+**Purpose**: Generates complete PM4 configuration files from Polymarket URLs.
+
+**CLI Tool Features:**
+- ✅ **Command-line interface** with multiple modes
+- ✅ **URL parsing** from Polymarket links
+- ✅ **Interactive mode** for guided setup
+- ✅ **Configurable output** and parameters
+- ✅ **Batch processing** capabilities
+
+**Usage:**
+```bash
+# Generate config from URL with default settings
+python -m pm4.market_config_helper "https://polymarket.com/market/will-ethereum-reach-10k-before-2025"
+
+# Customize bankroll amount
+python -m pm4.market_config_helper "https://polymarket.com/market/will-ethereum-reach-10k-before-2025" --bankroll 100
+
+# Specify output file
+python -m pm4.market_config_helper "https://polymarket.com/market/market-name" --output my_config.json
+```
+
+**What it does:**
+1. **URL Parsing**: Extracts market slug from any Polymarket URL
+2. **Market Analysis**: Runs the analyzer to validate suitability
+3. **Config Generation**: Creates complete `config.json` with:
+   - Market condition ID (auto-detected)
+   - Asset IDs (placeholder - you'll need to fill from market page)
+   - Proper timestamps (placeholder - you'll need to set actual dates)
+   - Safe default parameters for testing
+   - Market analysis summary embedded
+
+**Example Output:**
+```
+Analyzing market: will-ethereum-reach-10k-before-2025
+✓ Configuration saved to: config_generated.json
+
+Market Summary:
+  Volume: $125,430
+  Traders: 234
+  Price: 0.350
+  Status: RECOMMENDED
+```
+
+### **3. Interactive Config Helper (`pm4.market_config_helper --interactive`)**
+
+**Purpose**: Guided, step-by-step configuration for beginners.
+
+**Usage:**
+```bash
+# Start the interactive wizard
 python -m pm4.market_config_helper --interactive
 ```
 
-#### **How These Tools Work (Detailed Explanation)**
-
-**1. Market Analyzer (`pm4.market_analyzer`)**
-
 **What it does:**
-- Connects to Polymarket's API to fetch real-time market data
-- Analyzes 5 key factors: volume, active traders, recent activity, time-to-resolution, and price positioning
-- Scores the market on a 0-7 scale based on objective criteria
-- Provides a RECOMMENDED/CONDITIONAL/NOT_RECOMMENDED rating
-- Shows detailed reasoning for the score
+1. **URL Input**: Prompts you to paste a Polymarket URL
+2. **Validation**: Checks URL format and extracts market data
+3. **Market Analysis**: Shows suitability analysis before proceeding
+4. **Customization**: Lets you set bankroll and other parameters
+5. **File Generation**: Creates `config_generated.json` with all settings
 
-**Why it's valuable:**
-- **Time-saving**: Instantly identifies unsuitable markets (low volume, stagnant, etc.)
-- **Risk reduction**: Prevents you from wasting time on markets that won't work for PM4
-- **Education**: Teaches you what makes a "good" market for market making
-- **Objectivity**: Removes guesswork with data-driven analysis
-
-**Example workflows:**
+**Example Interactive Session:**
 ```
-Input: "https://polymarket.com/market/will-ethereum-reach-100k"
-Output: "RECOMMENDED - High volume ($250k), 150+ traders, active trading"
+PM4 Market Configuration Helper
+========================================
 
-Input: "will-ethereum-reach-100k"  (slug only)
-Output: "RECOMMENDED - High volume ($250k), 150+ traders, active trading"
-```
+Enter Polymarket market URL: https://polymarket.com/market/will-ethereum-reach-10k-before-2025
+✓ Extracted market slug: will-ethereum-reach-10k-before-2025
 
-**2. Config Helper URL Mode (`pm4.market_config_helper <url>`)**
+Analyzing market: will-ethereum-reach-10k-before-2025
 
-**What it does:**
-- Takes a Polymarket URL and extracts the market slug automatically
-- Calls the Market Analyzer to validate the market
-- Generates a complete `config.json` template with:
-  - Market condition ID and asset IDs (auto-filled)
-  - Proper timestamp conversion for start/end dates
-  - Safe default parameters for testing
-  - Market analysis summary included as comments
+Market Analysis:
+  Volume (24h): $125,430
+  Active Traders: 234
+  Current Price: 0.350
+  Recommendation: RECOMMENDED
 
-**Why it's valuable:**
-- **Automation**: No more manual URL parsing or ID lookup
-- **Safety**: Includes market validation before generating config
-- **Completeness**: Creates production-ready config files
-- **Integration**: Combines analysis + configuration in one step
+Enter bankroll amount (USD) [50]: 100
 
-**Example workflow:**
-```
-Input: "https://polymarket.com/market/will-btc-hit-100k-this-year"
-Output: Complete config.json with all IDs filled in + market analysis
-```
+✓ Configuration saved to: config_generated.json
 
-**3. Interactive Config Helper (`pm4.market_config_helper --interactive`)**
-
-**What it does:**
-- Starts an interactive command-line wizard
-- Asks you to paste a Polymarket URL
-- Validates the URL format and extracts market information
-- Lets you customize bankroll amount and other settings
-- Shows market analysis before finalizing config
-- Saves the generated config to a file
-
-**Why it's valuable:**
-- **User-friendly**: Perfect for beginners who are unfamiliar with PM4
-- **Guided**: Holds your hand through each configuration step
-- **Validation**: Double-checks your inputs and market suitability
-- **Educational**: Explains each parameter as you configure it
-
-**Example workflow:**
-```
-Wizard: "Paste your Polymarket market URL:"
-You: "https://polymarket.com/market/ethereum-above-5000-end-of-2025"
-Wizard: [Analyzes market...] "This looks good! Set your bankroll:"
-You: "100"
-Wizard: "Config saved as config_generated.json"
-```
-
-#### **Tool Integration Benefits**
-
-**Before these tools:** Manual process taking 30-60 minutes
-1. Browse Polymarket website manually
-2. Guess at market suitability based on visual inspection
-3. Manually extract condition IDs from developer tools
-4. Manually convert dates to timestamps
-5. Manually create config.json with trial-and-error parameter tuning
-
-**After these tools:** Automated process taking 5 minutes
-1. Run market analyzer → Get objective suitability score
-2. Run config helper → Get complete, validated config file
-3. Proceed to calibration with confidence
-
-**Safety improvements:**
-- Eliminates unsuitable markets before configuration
-- Prevents configuration errors (wrong IDs, bad timestamps)
-- Ensures proper parameter ranges for testing
-- Validates market has sufficient liquidity for PM4
-
-### Configuration File
-Ensure your `config.json` has appropriate risk settings for testing:
-
-```json
-{
-  "market": {
-    "market": "0x_CONDITION_ID",
-    "asset_id_yes": "0x_YES_TOKEN_ID",
-    "asset_id_no": "0x_NO_TOKEN_ID",
-    "start_ts_ms": 1710000000000,
-    "resolve_ts_ms": 1720000000000
-  },
-  "risk": {
-    "bankroll_B": 100.0,  // Start with small amount for testing
-    "n_plays": 1,          // Single market for focused testing
-    "gamma_max": 10.0      // Conservative spreads
-  },
-  "warmup": {
-    "min_return_samples": 360,  // ~30 minutes of data
-    "max_warmup_s": 3600         // 1 hour timeout
-  }
-}
+Next steps:
+1. Edit the generated config file
+2. Fill in the asset IDs from Polymarket market page
+3. Set correct start_ts_ms and resolve_ts_ms dates
+4. Rename to config.json and run: python -m pm4.warmup config.json
 ```
 
 ---
 
-## 🚀 **Step-by-Step Dry Run Process**
+---
+
+## 🚀 **Automated 5-Minute Setup & Dry-Run Process**
+
+### **Step 1: Automated Market Discovery & Analysis**
+
+**Time Estimate**: 30 seconds
+
+Use PM4's market analyzer to automatically evaluate market suitability:
+
+```bash
+# Find a good market URL from Polymarket and analyze it
+python -m pm4.market_analyzer "https://polymarket.com/market/will-ethereum-reach-10k-before-2025"
+```
+
+**What happens automatically:**
+- ✅ **Volume Check**: Validates 24h volume > $50k
+- ✅ **Trader Activity**: Confirms 100+ active participants
+- ✅ **Recent Movement**: Ensures market traded within 2 hours
+- ✅ **Time Horizon**: Verifies 30+ days until resolution
+- ✅ **Price Position**: Checks price between 0.15-0.85
+
+**Expected Output:**
+```
+Analyzing market: will-ethereum-reach-10k-before-2025
+==================================================
+RECOMMENDATION: RECOMMENDED
+✅ SUITABLE FOR PM4 MARKET MAKING
+==================================================
+```
+
+**❌ If NOT RECOMMENDED:**
+- Choose a different market from Polymarket
+- Look for markets with higher volume/trader counts
+- Avoid markets resolving within 24 hours
+
+### **Step 2: Automated Configuration Generation**
+
+**Time Estimate**: 30 seconds
+
+Generate a complete PM4 configuration automatically:
+
+```bash
+# Use the same URL to generate config
+python -m pm4.market_config_helper "https://polymarket.com/market/will-ethereum-reach-10k-before-2025"
+```
+
+**What gets created:**
+- ✅ **Market IDs**: Auto-extracted condition ID
+- ✅ **Safe Defaults**: Conservative parameters for testing
+- ✅ **Analysis Embedded**: Market suitability data included
+- ✅ **Complete Config**: Ready for PM4 warmup
+
+**Output:**
+```
+✓ Configuration saved to: config_generated.json
+
+Market Summary:
+  Volume: $125,430
+  Traders: 234
+  Price: 0.350
+  Status: RECOMMENDED
+```
+
+### **Step 3: Quick Config Review & Final Setup**
+
+**Time Estimate**: 2 minutes
+
+Review and finalize the generated configuration:
+
+```bash
+# Edit the generated config
+nano config_generated.json  # or your preferred editor
+```
+
+**Required Manual Updates:**
+1. **Asset IDs**: Get from Polymarket market page (Yes/No token addresses)
+2. **Timestamps**: Set actual market start and resolution dates
+3. **Bankroll**: Adjust if needed (default: $50 for safe testing)
+
+**Example final config:**
+```json
+{
+  "market": {
+    "market": "0x1234567890abcdef",        // Auto-filled
+    "asset_id_yes": "0x...",                 // MANUAL: Copy from Polymarket
+    "asset_id_no": "0x...",                  // MANUAL: Copy from Polymarket
+    "start_ts_ms": 1700000000000,           // MANUAL: Convert start date
+    "resolve_ts_ms": 1735000000000           // MANUAL: Convert end date
+  },
+  "risk": {
+    "bankroll_B": 50.0                       // Safe default for testing
+  }
+}
+```
+
+**Rename and proceed:**
+```bash
+mv config_generated.json config.json
+```
+
+### **Step 4: Automated Calibration (Warmup)**
+
+**Time Estimate**: 5-10 minutes
+
+Run PM4's warmup to calibrate risk parameters:
+
+```bash
+# Start calibration with your config
+python -m pm4.warmup config.json
+```
+
+**What happens automatically:**
+- ✅ **Data Collection**: Gathers 360+ price samples (30+ minutes)
+- ✅ **Risk Calibration**: Calculates volatility and market parameters
+- ✅ **Validation**: Ensures sufficient data quality
+- ✅ **Report Generation**: Human-readable calibration summary
+
+**Expected Output:**
+```
+--- Starting Warmup for 3600.0s ---
+Goal: Collect 360 return samples.
+
+Progress: 360/360 samples | Current Sigma: 1.15 | Elapsed: 32m 15s
+
+========================================
+CALIBRATION REPORT
+========================================
+Samples Collected: 360 / 360
+Base Volatility (MAD): 0.0823
+Current Smoothed Sigma: 1.15
+
+Verdict: MODERATE VOLATILITY
+
+Saved calibration to: ./data/warm_calibration.json
+```
+
+### **Step 5: Dry-Run Validation**
+
+**Time Estimate**: 2 minutes
+
+Test your setup without risking real capital:
+
+```bash
+# Start dry-run mode (NO ORDERS WILL BE PLACED)
+python -m pm4.run_bot config.json --dry-run
+```
+
+**What happens:**
+- ✅ **Live Data Connection**: Connects to real market data
+- ✅ **Quote Generation**: Calculates theoretical bid/ask prices
+- ✅ **Safety Mode**: Prints quotes but does NOT place orders
+- ✅ **Real-time Validation**: Shows how your bot would behave
+
+**Expected Output:**
+```
+⚠️  DRY RUN MODE ACTIVE ⚠️
+No orders will be placed. Watching market and printing theoretical quotes...
+
+[DRY] WOULD PLACE BUY: 25.0 @ 0.475 (order_id: dry_run_BUY_0x123_4750)
+[DRY] WOULD PLACE SELL: 25.0 @ 0.485 (order_id: dry_run_SELL_0x456_4850)
+```
+
+### **Step 6: Go/No-Go Decision**
+
+**Time Estimate**: 1 minute
+
+**✅ SAFE TO GO LIVE if:**
+- Calibration completed successfully (360+ samples)
+- Dry-run shows reasonable quotes (not too wide, logical pricing)
+- Market analysis was "RECOMMENDED"
+- No error messages or warnings
+
+**❌ DO NOT GO LIVE if:**
+- Calibration failed or shows extreme volatility
+- Dry-run quotes seem wrong (spreads too wide, illogical prices)
+- Market analysis was "NOT RECOMMENDED"
+- Any errors in the process
+
+### **Step 7: Live Trading (If Approved)**
+
+**Only proceed if all checks pass:**
+
+```bash
+# Start with conservative settings for first few hours
+python -m pm4.run_bot config.json
+```
+
+**Monitor closely:**
+- Position changes
+- P&L evolution
+- Order execution success
+- Market impact
+
+---
+
+## 🛠️ **Troubleshooting Guide**
+
+### **Common Issues**
+
+#### **"No calibration file found"**
+```bash
+❌ Error: Calibration file not found: ./data/warm_calibration.json
+```
+**Solution:** Run warmup first: `python -m pm4.warmup config.json`
+
+#### **Market Not Recommended**
+```
+RECOMMENDATION: NOT_RECOMMENDED
+```
+**Solution:** Choose a different market with higher volume/activity
+
+#### **Poor Calibration Quality**
+```
+Samples Collected: 180 / 360
+```
+**Solution:** Market may be too illiquid - try a different market
+
+#### **Unrealistic Quotes in Dry-Run**
+```
+[DRY] WOULD PLACE BUY: 10000.0 @ 0.475
+```
+**Solution:** Check bankroll settings and risk parameters
+
+### **Tool-Specific Help**
+
+#### **Market Analyzer Issues**
+```bash
+# If analysis fails
+python -m pm4.market_analyzer "https://polymarket.com/market/market-name" --verbose
+```
+
+#### **Config Helper Issues**
+```bash
+# Force overwrite existing config
+python -m pm4.market_config_helper "url" --output config.json --force
+```
+
+#### **Interactive Mode Issues**
+```bash
+# Skip analysis in interactive mode
+python -m pm4.market_config_helper --interactive --skip-analysis
+```
+
+---
+
+## 📊 **Success Metrics**
+
+### **Good Automated Setup**
+```
+✅ Market Analysis: RECOMMENDED
+✅ Config Generation: Successful
+✅ Calibration: 360+ samples, sigma 1.0-2.0
+✅ Dry-Run: Quotes look reasonable
+✅ Live Trading: Smooth execution
+```
+
+### **Time Breakdown**
+- Market Analysis: 30 seconds
+- Config Generation: 30 seconds
+- Config Review: 2 minutes
+- Calibration: 5-10 minutes
+- Dry-Run: 2 minutes
+- **Total**: ~10-15 minutes
+
+### **Risk Reduction Achieved**
+- ❌ Manual market evaluation errors → ✅ Automated scoring
+- ❌ Configuration mistakes → ✅ Generated templates
+- ❌ Poor calibration → ✅ Quality validation
+- ❌ Live trading surprises → ✅ Dry-run testing
+
+---
+
+## 🎯 **Key Takeaways**
+
+1. **Use the tools in order**: Analyzer → Config Helper → Warmup → Dry-run → Live
+2. **Trust automated analysis**: The tools know more about market suitability than guesswork
+3. **Never skip dry-run**: 2 minutes of validation prevents costly mistakes
+4. **Start small**: Even with good analysis, begin with conservative settings
+5. **Monitor continuously**: Markets change - your automated setup should adapt
+
+**The automated workflow transforms hours of manual work into a 10-minute process with superior safety and reliability.**
+
+---
+
+*Last updated: December 29, 2024*
+
+## 🚀 **Automated 5-Minute Setup & Dry-Run Process**
 
 ### **Step 1: Select a Test Market on Polymarket**
 
