@@ -74,7 +74,9 @@ Where:
 
 ```
 PM4/
-├── main.py              # Application entry point & orchestration
+├── warmup.py            # Standalone calibration & data collection
+├── run_bot.py           # Trading execution with dry-run support
+├── config.py            # Configuration loading utilities
 ├── types.py             # Configuration dataclasses & type definitions
 ├── utils.py             # Mathematical utilities & helper functions
 ├── logging.py           # Hierarchical logging & debugging system
@@ -151,16 +153,28 @@ Edit `config.json` to specify target markets and risk parameters:
 
 ### Running
 
-```bash
-# Start the market maker
-python -m pm4 config.json
+PM4 uses a human-in-the-loop workflow that separates calibration from trading for safety and control:
 
-# The bot will:
-# 1. Connect to Polymarket WebSocket feeds
-# 2. Perform market calibration (warmup phase)
-# 3. Begin automated market making
-# 4. Log activity and performance metrics
+```bash
+# Step 1: Calibration - collect data and calculate risk parameters
+python -m pm4.warmup config.json
+
+# Step 2: Dry-run test - verify quotes without placing orders
+python -m pm4.run_bot config.json --dry-run
+
+# Step 3: Live trading - start automated market making
+python -m pm4.run_bot config.json
 ```
+
+**Workflow Explanation:**
+1. **Calibration**: Connects to Polymarket WebSocket feeds, collects market data, calculates volatility and risk parameters, generates a human-readable report
+2. **Dry-run**: Loads calibration data, computes quotes in real-time, prints theoretical orders without executing them
+3. **Live Trading**: Loads calibration data and begins automated market making with real orders
+
+**Benefits:**
+- Human-in-the-loop validation of calibration results
+- Ability to test quote behavior before risking capital
+- Reuse calibration across multiple trading sessions
 
 ## ⚙️ Configuration
 

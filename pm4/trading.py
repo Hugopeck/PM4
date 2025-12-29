@@ -631,6 +631,81 @@ class Indicators:
             "ema_slow_abs": self._ema_slow_abs
         }
 
+    def save_calibration(self) -> Dict[str, Any]:
+        """Save complete calibration state for persistence.
+
+        Exports full internal state including all EMAs, returns history,
+        and volatility estimates. This allows complete restoration of the
+        calibration state without re-running warmup.
+
+        Returns:
+            Dictionary containing complete calibration state:
+            - All fields from warm_snapshot()
+            - Full internal state: _sigma_smoothed, all EMAs, returns deque
+            - Timestamps and last values for continuity
+        """
+        rs = list(self._returns)
+        if not rs:
+            return {"n_returns": 0}
+
+        # Get base snapshot
+        snap = self.warm_snapshot()
+
+        # Add full internal state for complete restoration
+        snap.update({
+            "_sigma_smoothed": self._sigma_smoothed,
+            "_ema_fast_r": self._ema_fast_r,
+            "_ema_fast_abs_r": self._ema_fast_abs_r,
+            "_ema_slow_abs_r": self._ema_slow_abs_r,
+            "_returns": rs,  # Convert deque to list for JSON serialization
+            "_last_sample_ts_ms": self._last_sample_ts_ms,
+            "_last_x": self._last_x,
+            "_tox_ema_pos_h1": self._tox_ema_pos_h1,
+            "_tox_ema_pos_h2": self._tox_ema_pos_h2,
+        })
+
+        return snap
+
+    def load_calibration(self, calib_data: Dict[str, Any]) -> None:
+        """Load calibration state from saved data.
+
+        Restores complete internal state including all EMAs, returns history,
+        and volatility estimates. This allows resuming calibration without
+        re-running the warmup phase.
+
+        Args:
+            calib_data: Dictionary containing calibration state from save_calibration()
+
+        Raises:
+            ValueError: If calibration data is missing required fields
+        """
+        # Validate required fields
+        required_fields = [
+            "_sigma_smoothed", "_ema_fast_abs", "_ema_slow_abs",
+            "_ema_fast_r", "_ema_fast_abs_r", "_ema_slow_abs_r",
+            "_returns", "_last_sample_ts_ms", "_last_x",
+            "_tox_ema_pos_h1", "_tox_ema_pos_h2"
+        ]
+        missing = [f for f in required_fields if f not in calib_data]
+        if missing:
+            raise ValueError(f"Missing required calibration fields: {missing}")
+
+        # Restore all internal state
+        self._sigma_smoothed = float(calib_data["_sigma_smoothed"])
+        self._ema_fast_abs = float(calib_data["_ema_fast_abs"])
+        self._ema_slow_abs = float(calib_data["_ema_slow_abs"])
+        self._ema_fast_r = float(calib_data["_ema_fast_r"])
+        self._ema_fast_abs_r = float(calib_data["_ema_fast_abs_r"])
+        self._ema_slow_abs_r = float(calib_data["_ema_slow_abs_r"])
+        self._last_sample_ts_ms = int(calib_data["_last_sample_ts_ms"]) if calib_data["_last_sample_ts_ms"] is not None else None
+        self._last_x = float(calib_data["_last_x"]) if calib_data["_last_x"] is not None else None
+        self._tox_ema_pos_h1 = float(calib_data["_tox_ema_pos_h1"])
+        self._tox_ema_pos_h2 = float(calib_data["_tox_ema_pos_h2"])
+
+        # Restore returns deque (convert list back to deque)
+        returns_list = calib_data.get("_returns", [])
+        self._returns = deque(returns_list, maxlen=5000)
+
 
 class Quoter:
     """Order quote generation and risk-adjusted pricing engine.
@@ -893,16 +968,59 @@ class MarketMakerBot:
                 if self._shutdown.is_set():
                     break
 
+    def load_calibration(self) -> bool:
+        """Load calibration from file if it exists.
+
+        Attempts to load calibration data from the configured calibration path.
+        If the file exists and is valid, restores the Indicators state.
+        If the file is missing or invalid, returns False to trigger warmup.
+
+        Returns:
+            True if calibration was successfully loaded, False otherwise
+        """
+        if not os.path.exists(self.cfg.calib_path):
+            return False
+        
+        try:
+            with open(self.cfg.calib_path, "r") as fp:
+                calib_data = json.load(fp)
+            
+            # Validate calibration data
+            if not calib_data or "n_returns" not in calib_data:
+                self.logger.write("calib_load_error", {"err": "Invalid calibration file format"})
+                return False
+            
+            # Load calibration into Indicators
+            self.ind.load_calibration(calib_data)
+            
+            # Check calibration freshness (warn if older than 24 hours)
+            if "_last_sample_ts_ms" in calib_data and calib_data["_last_sample_ts_ms"]:
+                age_hours = (now_ms() - calib_data["_last_sample_ts_ms"]) / (1000 * 3600)
+                if age_hours > 24:
+                    print(f"⚠ Warning: Calibration is {age_hours:.1f} hours old. Consider re-running warmup.")
+            
+            self.logger.write("calib_loaded", {
+                "n_returns": calib_data.get("n_returns", 0),
+                "sigma": calib_data.get("_sigma_smoothed", 1.0)
+            })
+            return True
+        
+        except Exception as e:
+            self.logger.write("calib_load_error", {"err": str(e)})
+            print(f"⚠ Failed to load calibration: {e}. Running warmup instead.")
+            return False
+
     async def _warmup(self):
         """Perform market calibration and model warm-up phase.
 
         Collects market data to calibrate volatility models and risk parameters
         before enabling live trading. This ensures stable operation by:
 
-        1. Gathering sufficient price return samples for volatility estimation
-        2. Calibrating exponential moving averages
-        3. Establishing baseline market conditions
-        4. Saving calibration data for persistence
+        1. Attempting to load existing calibration file (if available)
+        2. If no calibration exists, gathering sufficient price return samples
+        3. Calibrating exponential moving averages
+        4. Establishing baseline market conditions
+        5. Saving calibration data for persistence
 
         The warmup continues until either:
         - Sufficient samples collected (min_return_samples)
@@ -911,8 +1029,16 @@ class MarketMakerBot:
 
         Note:
             Critical for stable operation - prevents erratic behavior from
-            insufficient calibration data.
+            insufficient calibration data. Can skip warmup if valid calibration
+            file exists from previous run.
         """
+        # Try to load existing calibration first
+        if self.load_calibration():
+            print("✓ Loaded existing calibration. Skipping warmup phase.")
+            return
+        
+        # No calibration file found - run warmup
+        print("No calibration file found. Starting warmup phase...")
         t0 = time.time()
         self.logger.write("warmup_start", {"dt_sample_s": self.cfg.warmup.dt_sample_s, "min_samples": self.cfg.warmup.min_return_samples})
         while not self._shutdown.is_set():
@@ -928,7 +1054,7 @@ class MarketMakerBot:
             if (time.time() - t0) >= self.cfg.warmup.max_warmup_s:
                 break
             await asyncio.sleep(0.2)
-        snap = self.ind.warm_snapshot()
+        snap = self.ind.save_calibration()  # Use save_calibration for full state
         os.makedirs(os.path.dirname(self.cfg.calib_path), exist_ok=True)
         with open(self.cfg.calib_path, "w") as fp:
             json.dump(snap, fp, indent=2)

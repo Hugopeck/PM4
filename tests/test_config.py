@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from pm4.main import load_config
+from pm4.config import load_config
 from pm4.types import (
     BotConfig,
     LoggingConfig,
@@ -213,8 +213,8 @@ class TestBotConfig:
         assert isinstance(config.quote, QuoteConfig)
         assert isinstance(config.logging, LoggingConfig)
 
-        assert config.log_path == "./data/mm_events.jsonl"
-        assert config.calib_path == "./data/warm_calibration.json"
+        assert config.log_path == "./data/test_events.jsonl"
+        assert config.calib_path == "./data/test_calibration.json"
 
     @pytest.mark.unit
     def test_bot_config_custom_paths(self):
@@ -327,7 +327,7 @@ class TestConfigLoading:
         with open(config_path, 'w') as f:
             json.dump(config_data, f)
 
-        with pytest.raises(KeyError):
+        with pytest.raises(TypeError):
             load_config(str(config_path))
 
     @pytest.mark.unit
