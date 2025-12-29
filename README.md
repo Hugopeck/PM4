@@ -1,4 +1,4 @@
-# PM4 - Prediction Market Maker Model
+# PM4 - Prediction Market's Market Maker
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)]()
@@ -142,15 +142,62 @@ Edit `config.json` to specify target markets and risk parameters:
     "resolve_ts_ms": 1720000000000
   },
   "risk": {
-    "bankroll_B": 500.0,
-    "n_plays": 3
+    "bankroll_B": 50.0,  // Start small for testing
+    "n_plays": 1
   },
   "logging": {
-    "level": "INFO",
-    "enable_performance": false
+    "level": "DEBUG",
+    "enable_performance": true
   }
 }
 ```
+
+### Market Analysis & Setup
+
+PM4 includes automated tools to help you select suitable markets and generate configurations:
+
+#### **Analyze Market Suitability:**
+```bash
+# Automatically evaluate market for PM4 compatibility
+python -m pm4.market_analyzer "ethereum-to-10k-before-2025"
+```
+
+**Example Output:**
+```
+==================================================
+MARKET ANALYSIS: ethereum-to-10k-before-2025
+==================================================
+Condition ID: 0x1234567890abcdef
+Current Price: 0.350
+24h Volume: $125,430
+Active Traders: 234
+Last Trade: 0.8 hours ago
+Time to Resolution: 245 days
+Price Range (24h): 0.330 - 0.380
+
+RECOMMENDATION: RECOMMENDED
+
+DETAILED ANALYSIS:
+  ✓ Excellent volume: $125,430
+  ✓ High trader count: 234
+  ✓ Moderate time horizon: 245 days
+  ✓ Price in good range: 0.35
+```
+
+#### **Generate Configuration Templates:**
+```bash
+# Create config from Polymarket URL
+python -m pm4.market_config_helper "https://polymarket.com/market/ethereum-to-10k-before-2025"
+
+# Interactive setup (guided configuration)
+python -m pm4.market_config_helper --interactive
+```
+
+**Benefits:**
+- Automated market evaluation based on volume, liquidity, and activity
+- Objective recommendations to avoid unsuitable markets
+- Guided configuration setup with market analysis
+- Interactive workflow for first-time users
 
 ### Running
 
