@@ -15,6 +15,29 @@ from dataclasses import dataclass
 from .utils import now_ms
 
 
+def extract_market_slug(url_or_slug: str) -> str:
+    """Extract market slug from Polymarket URL or return slug as-is."""
+    import re
+
+    # Check if it's already a slug (no protocol/domain)
+    if not url_or_slug.startswith(('http://', 'https://', 'www.')):
+        return url_or_slug
+
+    # Handle various Polymarket URL formats
+    patterns = [
+        r'polymarket\.com/market/([^/?]+)',
+        r'gamma\.polymarket\.com/market/([^/?]+)',
+        r'https?://[^/]+/market/([^/?]+)'
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, url_or_slug)
+        if match:
+            return match.group(1)
+
+    raise ValueError(f"Could not extract market slug from: {url_or_slug}. Please provide either a Polymarket URL or market slug.")
+
+
 @dataclass
 class MarketAnalysis:
     """Comprehensive market analysis result."""
@@ -226,14 +249,23 @@ def main():
         description="Analyze Polymarket for PM4 trading suitability"
     )
     parser.add_argument(
-        "market_slug",
-        help="Polymarket market slug (e.g., 'will-ethereum-reach-10k-before-2025')"
+        "market_input",
+        help="Polymarket market URL or slug (e.g., 'https://polymarket.com/market/will-ethereum-reach-10k-before-2025' or 'will-ethereum-reach-10k-before-2025')"
     )
 
     args = parser.parse_args()
 
+    # Extract market slug from URL or use slug directly
+    try:
+        market_slug = extract_market_slug(args.market_input)
+        print(f"Analyzing market: {market_slug}")
+        print("-" * 50)
+    except ValueError as e:
+        print(f"Error: {e}")
+        return
+
     analyzer = MarketAnalyzer()
-    analysis = analyzer.analyze_market(args.market_slug)
+    analysis = analyzer.analyze_market(market_slug)
     analyzer.print_analysis_report(analysis)
 
 

@@ -27,18 +27,120 @@ export FUNDER_ADDRESS="your_funder_address"  # Optional for gasless trading
 ```
 
 ### Available Tools
-PM4 now includes automated tools to help with market analysis:
+PM4 now includes automated tools to help with market analysis and configuration:
 
 ```bash
-# Analyze market suitability automatically
-python -m pm4.market_analyzer "ethereum-to-10k-before-2025"
+# 🧮 MARKET ANALYZER: Automatically evaluate market suitability for PM4 trading
+# This tool analyzes volume, liquidity, trader activity, and market conditions
+# to give you an objective recommendation before you invest time configuring
+# Accepts both full URLs and simple market slugs for maximum flexibility
+python -m pm4.market_analyzer "https://polymarket.com/market/ethereum-to-10k-before-2025"
+# OR simply: python -m pm4.market_analyzer "ethereum-to-10k-before-2025"
 
-# Generate config template for a market
+# ⚙️ CONFIG HELPER (URL Mode): Extract market info from Polymarket URLs
+# Automatically fetches market details and generates a complete config.json template
+# Saves you from manually looking up condition IDs, asset IDs, and timestamps
 python -m pm4.market_config_helper "https://polymarket.com/market/ethereum-to-10k-before-2025"
 
-# Interactive config setup
+# 🎯 INTERACTIVE CONFIG HELPER: Guided step-by-step configuration
+# Walks you through selecting a market and setting up your config interactively
+# Perfect for first-time users who want hand-holding through the process
 python -m pm4.market_config_helper --interactive
 ```
+
+#### **How These Tools Work (Detailed Explanation)**
+
+**1. Market Analyzer (`pm4.market_analyzer`)**
+
+**What it does:**
+- Connects to Polymarket's API to fetch real-time market data
+- Analyzes 5 key factors: volume, active traders, recent activity, time-to-resolution, and price positioning
+- Scores the market on a 0-7 scale based on objective criteria
+- Provides a RECOMMENDED/CONDITIONAL/NOT_RECOMMENDED rating
+- Shows detailed reasoning for the score
+
+**Why it's valuable:**
+- **Time-saving**: Instantly identifies unsuitable markets (low volume, stagnant, etc.)
+- **Risk reduction**: Prevents you from wasting time on markets that won't work for PM4
+- **Education**: Teaches you what makes a "good" market for market making
+- **Objectivity**: Removes guesswork with data-driven analysis
+
+**Example workflows:**
+```
+Input: "https://polymarket.com/market/will-ethereum-reach-100k"
+Output: "RECOMMENDED - High volume ($250k), 150+ traders, active trading"
+
+Input: "will-ethereum-reach-100k"  (slug only)
+Output: "RECOMMENDED - High volume ($250k), 150+ traders, active trading"
+```
+
+**2. Config Helper URL Mode (`pm4.market_config_helper <url>`)**
+
+**What it does:**
+- Takes a Polymarket URL and extracts the market slug automatically
+- Calls the Market Analyzer to validate the market
+- Generates a complete `config.json` template with:
+  - Market condition ID and asset IDs (auto-filled)
+  - Proper timestamp conversion for start/end dates
+  - Safe default parameters for testing
+  - Market analysis summary included as comments
+
+**Why it's valuable:**
+- **Automation**: No more manual URL parsing or ID lookup
+- **Safety**: Includes market validation before generating config
+- **Completeness**: Creates production-ready config files
+- **Integration**: Combines analysis + configuration in one step
+
+**Example workflow:**
+```
+Input: "https://polymarket.com/market/will-btc-hit-100k-this-year"
+Output: Complete config.json with all IDs filled in + market analysis
+```
+
+**3. Interactive Config Helper (`pm4.market_config_helper --interactive`)**
+
+**What it does:**
+- Starts an interactive command-line wizard
+- Asks you to paste a Polymarket URL
+- Validates the URL format and extracts market information
+- Lets you customize bankroll amount and other settings
+- Shows market analysis before finalizing config
+- Saves the generated config to a file
+
+**Why it's valuable:**
+- **User-friendly**: Perfect for beginners who are unfamiliar with PM4
+- **Guided**: Holds your hand through each configuration step
+- **Validation**: Double-checks your inputs and market suitability
+- **Educational**: Explains each parameter as you configure it
+
+**Example workflow:**
+```
+Wizard: "Paste your Polymarket market URL:"
+You: "https://polymarket.com/market/ethereum-above-5000-end-of-2025"
+Wizard: [Analyzes market...] "This looks good! Set your bankroll:"
+You: "100"
+Wizard: "Config saved as config_generated.json"
+```
+
+#### **Tool Integration Benefits**
+
+**Before these tools:** Manual process taking 30-60 minutes
+1. Browse Polymarket website manually
+2. Guess at market suitability based on visual inspection
+3. Manually extract condition IDs from developer tools
+4. Manually convert dates to timestamps
+5. Manually create config.json with trial-and-error parameter tuning
+
+**After these tools:** Automated process taking 5 minutes
+1. Run market analyzer → Get objective suitability score
+2. Run config helper → Get complete, validated config file
+3. Proceed to calibration with confidence
+
+**Safety improvements:**
+- Eliminates unsuitable markets before configuration
+- Prevents configuration errors (wrong IDs, bad timestamps)
+- Ensures proper parameter ranges for testing
+- Validates market has sufficient liquidity for PM4
 
 ### Configuration File
 Ensure your `config.json` has appropriate risk settings for testing:

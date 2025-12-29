@@ -159,7 +159,9 @@ PM4 includes automated tools to help you select suitable markets and generate co
 #### **Analyze Market Suitability:**
 ```bash
 # Automatically evaluate market for PM4 compatibility
-python -m pm4.market_analyzer "ethereum-to-10k-before-2025"
+# Accepts both full URLs and market slugs
+python -m pm4.market_analyzer "https://polymarket.com/market/ethereum-to-10k-before-2025"
+# OR: python -m pm4.market_analyzer "ethereum-to-10k-before-2025"
 ```
 
 **Example Output:**
