@@ -69,6 +69,7 @@ Where:
 - 🎯 **Marchetype Tuning**: Parameter optimization for 6 market types (a1-a3, e1-e3)
 - 💰 **Dynamic Cash Floor**: Solvency protection with liability-matched capital reserves
 - 📊 **Real-Time Calibration**: Continuous parameter adaptation from market microstructure
+- 🧠 **Meta-Calibration**: Self-tuning warmup parameters based on market activity patterns
 - 🔒 **Production Hardened**: Multi-level auth, comprehensive logging, graceful degradation
 
 ## 🏗️ Architecture
@@ -92,6 +93,7 @@ PM4/
 
 | Component | Mathematical Role | Key Innovation |
 |-----------|------------------|----------------|
+| **Meta-Calibrator** | Self-tuning warmup parameters | Market-activity-based parameter optimization |
 | **Inventory Manager (q̂)** | Normalized position relative to Kelly capacity | Time-decaying limits based on hedging costs |
 | **Solvency Fear (γ_dyn)** | Dynamic risk aversion with feedback loops | Self-correcting capital preservation |
 | **Structural Risk (λ)** | Marchetype-aware market adjustment | Bounded multiplier [1,λ_max] for market types |
@@ -212,9 +214,9 @@ python -m pm4.run_bot config.json
 ```
 
 **Workflow Explanation:**
-1. **Calibration**: Connects to Polymarket WebSocket feeds, collects market data, calculates volatility and risk parameters, generates a human-readable report
+1. **Calibration**: Three-phase process - observes market activity, meta-calibrates warmup parameters, then collects data with optimized settings
 2. **Dry-run**: Loads calibration data, computes quotes in real-time, prints theoretical orders without executing them
-3. **Live Trading**: Loads calibration data and begins automated market making with real orders
+3. **Live Trading**: Loads calibration data and begins automated market making with continuous parameter adaptation
 
 **Benefits:**
 - Human-in-the-loop validation of calibration results

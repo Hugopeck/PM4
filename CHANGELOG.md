@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.1.3] - 2024-12-30
+
+### Added
+- **Meta-Calibration System**: Self-tuning warmup parameters based on market activity
+  - Three-phase warmup: observation → meta-calibration → calibration
+  - Adaptive sampling intervals (`dt_sample_s`) based on price change frequency
+  - Market-aware EMA time constants (`tau_fast_s`, `tau_slow_s`) using autocorrelation analysis
+  - Activity-based markout horizons (`markout_h1_s`, `markout_h2_s`) from trade inter-arrival patterns
+  - Continuous parameter adaptation during live trading with EMA-style updates
+  - Separate meta-calibration persistence in `meta_warmup_params.json`
+- **Activity Metrics Tracking**: Enhanced Indicators class with market microstructure analysis
+  - Price change interval monitoring for optimal sampling rates
+  - Trade inter-arrival time distribution analysis
+  - Return autocorrelation half-life estimation for volatility clustering detection
+  - Real-time activity pattern recognition for parameter optimization
+
+### Technical Details
+- **Meta-Calibration Algorithm**: Analyzes 100+ activity metrics to optimize 5 warmup parameters
+- **Activity-Based Adaptation**: Parameters evolve with market conditions using 2-hour adaptation windows
+- **Backward Compatibility**: Falls back to config defaults when meta-calibration unavailable
+- **Robust Statistical Methods**: Uses median-based metrics to handle outliers and market noise
+
 ## [0.1.2] - 2024-12-30
 
 ### Added

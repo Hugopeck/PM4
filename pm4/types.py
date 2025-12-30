@@ -2,6 +2,7 @@
 Configuration types and dataclasses for PM4.
 """
 from dataclasses import dataclass, field
+from typing import Dict
 
 
 @dataclass
@@ -79,6 +80,18 @@ class LoggingConfig:
     level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
     enable_performance: bool = False
     enable_context_tracking: bool = False
+
+
+@dataclass
+class MetaWarmupParams:
+    """Meta-calibrated warmup parameters based on market activity."""
+    dt_sample_s: float
+    tau_fast_s: float
+    tau_slow_s: float
+    markout_h1_s: float
+    markout_h2_s: float
+    calibrated_at_ms: int
+    market_activity_summary: Dict[str, float] = field(default_factory=dict)
 
 
 @dataclass

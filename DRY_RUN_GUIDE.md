@@ -289,25 +289,46 @@ mv config_generated.json config.json
 
 ### **Step 4: Automated Calibration (Warmup)**
 
-**Time Estimate**: 5-10 minutes
+**Time Estimate**: 10-15 minutes
 
-Run PM4's warmup to calibrate risk parameters:
+Run PM4's three-phase warmup to calibrate risk parameters:
 
 ```bash
-# Start calibration with your config
+# Start three-phase calibration with your config
 python -m pm4.warmup config.json
 ```
 
+**Three-Phase Process:**
+**Phase 1: Observation (5-10 minutes)**
+- Fast sampling (1s intervals) to analyze market activity patterns
+- Collects price change frequencies and trade inter-arrival times
+- Measures autocorrelation and volatility clustering characteristics
+
+**Phase 2: Meta-Calibration (30 seconds)**
+- Analyzes observed activity to optimize warmup parameters
+- Calculates optimal `dt_sample_s`, `tau_fast_s`, `tau_slow_s`, markout horizons
+- Saves meta-calibration to `meta_warmup_params.json`
+
+**Phase 3: Calibration (5-10 minutes)**
+- Uses meta-calibrated parameters to collect 360+ return samples
+- Applies optimized EMA time constants and sampling intervals
+- Generates comprehensive calibration report
+
 **What happens automatically:**
-- ✅ **Data Collection**: Gathers 360+ price samples (30+ minutes)
+- ✅ **Activity Analysis**: Measures market microstructure and trading patterns
+- ✅ **Parameter Optimization**: Self-tunes warmup parameters for market conditions
+- ✅ **Data Collection**: Gathers 360+ price samples with optimized settings
 - ✅ **Risk Calibration**: Calculates volatility and market parameters
 - ✅ **Validation**: Ensures sufficient data quality
-- ✅ **Report Generation**: Human-readable calibration summary
+- ✅ **Report Generation**: Human-readable calibration summary with meta-calibration details
 
 **Expected Output:**
 ```
 --- Starting Warmup for 3600.0s ---
-Goal: Collect 360 return samples.
+Phase 1: Observation (collecting market activity data)
+Phase 2: Meta-calibrating warmup parameters...
+✓ Phase 2 complete: Meta-calibration applied
+Phase 3: Collecting return samples with calibrated parameters...
 
 Progress: 360/360 samples | Current Sigma: 1.15 | Elapsed: 32m 15s
 
@@ -315,10 +336,28 @@ Progress: 360/360 samples | Current Sigma: 1.15 | Elapsed: 32m 15s
 CALIBRATION REPORT
 ========================================
 Samples Collected: 360 / 360
+Collection Time: 30m 15s
 Base Volatility (MAD): 0.0823
-Current Smoothed Sigma: 1.15
+Shock Factor (EMA Fast/Slow): 0.120 / 0.098
 
-Verdict: MODERATE VOLATILITY
+Meta-Calibration Applied:
+  dt_sample_s: 4.2
+  tau_fast_s: 25.0
+  tau_slow_s: 1650.0
+  markout_h1_s: 8.5
+  markout_h2_s: 45.0
+
+Market Activity Observed:
+  - Price Changes: 245
+  - Median Price Interval: 4.2s
+  - Trade Interarrivals: 180
+  - Median Trade Interval: 10.5s
+  - Autocorr Half-Life: 25.0s
+  - Vol Cluster Timescale: 1650.0s
+
+Volatility Interpretation:
+  Current Sigma: 1.15x baseline
+  Verdict: MODERATE VOLATILITY
 
 Saved calibration to: ./data/warm_calibration.json
 ```
@@ -354,16 +393,18 @@ No orders will be placed. Watching market and printing theoretical quotes...
 **Time Estimate**: 1 minute
 
 **✅ SAFE TO GO LIVE if:**
+- Meta-calibration completed successfully (shows market activity analysis)
 - Calibration completed successfully (360+ samples)
 - Dry-run shows reasonable quotes (not too wide, logical pricing)
 - Market analysis was "RECOMMENDED"
-- No error messages or warnings
+- Meta-calibration parameters look reasonable for market conditions
 
 **❌ DO NOT GO LIVE if:**
+- Meta-calibration failed (using config defaults only)
 - Calibration failed or shows extreme volatility
 - Dry-run quotes seem wrong (spreads too wide, illogical prices)
 - Market analysis was "NOT RECOMMENDED"
-- Any errors in the process
+- Meta-calibration shows extreme parameter values
 
 ### **Step 7: Live Trading (If Approved)**
 
@@ -512,7 +553,8 @@ python -m pm4.market_config_helper --interactive --skip-analysis
 ### **Risk Reduction Achieved**
 - ❌ Manual market evaluation errors → ✅ Automated scoring
 - ❌ Configuration mistakes → ✅ Generated templates
-- ❌ Poor calibration → ✅ Quality validation
+- ❌ Suboptimal warmup parameters → ✅ Meta-calibrated settings
+- ❌ Poor calibration → ✅ Quality validation + activity-based optimization
 - ❌ Live trading surprises → ✅ Dry-run testing
 
 ---
@@ -521,11 +563,12 @@ python -m pm4.market_config_helper --interactive --skip-analysis
 
 1. **Use the tools in order**: Analyzer → Config Helper → Warmup → Dry-run → Live
 2. **Trust automated analysis**: The tools know more about market suitability than guesswork
-3. **Never skip dry-run**: 2 minutes of validation prevents costly mistakes
-4. **Start small**: Even with good analysis, begin with conservative settings
-5. **Monitor continuously**: Markets change - your automated setup should adapt
+3. **Meta-calibration matters**: Three-phase warmup optimizes parameters for each market's activity patterns
+4. **Never skip dry-run**: 2 minutes of validation prevents costly mistakes
+5. **Start small**: Even with good analysis, begin with conservative settings
+6. **Monitor continuously**: Markets change - PM4 adapts parameters automatically during trading
 
-**The automated workflow transforms hours of manual work into a 10-minute process with superior safety and reliability.**
+**The automated workflow, enhanced by meta-calibration, transforms hours of manual work into a 10-minute process with superior safety, reliability, and market-specific optimization.**
 
 ---
 
@@ -629,6 +672,12 @@ Saved to: ./data/warm_calibration.json
 
 **Check these values:**
 
+**Meta-Calibration Parameters:**
+- **dt_sample_s**: Should match observed price change frequency (typically 1-10s)
+- **tau_fast_s**: Should reflect autocorrelation timescale (typically 10-60s)
+- **tau_slow_s**: Should be much longer than tau_fast (typically 600-3600s)
+- **markout_h1_s/markout_h2_s**: Should align with trade frequency
+
 **Sigma (Volatility Multiplier):**
 - **1.0 - 2.0**: ✅ Normal market conditions
 - **< 0.8**: ⚠️ Too low (might indicate data issues)
@@ -637,6 +686,11 @@ Saved to: ./data/warm_calibration.json
 **Sample Count:**
 - **Must be ≥ 360** ✅
 - If less, calibration period was too short
+
+**Market Activity Metrics:**
+- **Price Changes**: ≥ 50 for reliable meta-calibration
+- **Trade Interarrivals**: ≥ 20 for markout horizon optimization
+- **Autocorr Half-Life**: Reasonable timescale (not too short/long)
 
 **EMA Values:**
 - **Fast ≈ Slow**: Stable market
@@ -648,9 +702,11 @@ Saved to: ./data/warm_calibration.json
 - **< 0.01**: Poor liquidity (consider different market)
 
 **❌ Stop Here If:**
+- Meta-calibration failed (using config defaults)
 - Sigma > 2.5 (market too volatile)
 - Samples < 360 (insufficient data)
 - Trade rate < 0.01 (illiquid market)
+- Meta-calibration shows extreme parameter values
 
 ---
 

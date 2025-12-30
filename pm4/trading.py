@@ -168,6 +168,19 @@ class Indicators:
         self._tox_ema_pos_h2 = 0.0
         self._last_print = 0.0
 
+        # Activity metrics tracking for meta-calibration
+        self._price_change_times: Deque[int] = deque(maxlen=1000)
+        self._trade_interarrivals: Deque[float] = deque(maxlen=1000)
+        self._recent_returns: Deque[float] = deque(maxlen=1000)
+        self._last_trade_ts_ms: Optional[int] = None
+
+        # Meta-calibrated parameters (start with config defaults)
+        self._meta_dt_sample_s: Optional[float] = None
+        self._meta_tau_fast_s: Optional[float] = None
+        self._meta_tau_slow_s: Optional[float] = None
+        self._meta_markout_h1_s: Optional[float] = None
+        self._meta_markout_h2_s: Optional[float] = None
+
     def _ema(self, prev: float, x: float, tau_s: float, dt_s: float) -> float:
         """Exponential moving average calculation.
 
@@ -404,6 +417,10 @@ class Indicators:
         self._fills_pending.append(fill)
         self.logger.write("fill", fill)
 
+        # Track trade inter-arrival times for meta-calibration
+        if "ts_ms" in fill:
+            self.track_trade_arrival(int(fill["ts_ms"]))
+
     def update_markouts(self, t_ms: int, p_mid: float) -> None:
         """Update markout analysis for performance attribution.
 
@@ -425,8 +442,8 @@ class Indicators:
         x_now = logit(p_mid)
 
         # Define markout horizons in milliseconds
-        h1_ms = int(self.cfg.warmup.markout_h1_s * 1000)  # Short-term horizon
-        h2_ms = int(self.cfg.warmup.markout_h2_s * 1000)  # Long-term horizon
+        h1_ms = int(self.get_markout_h1_s() * 1000)  # Short-term horizon
+        h2_ms = int(self.get_markout_h2_s() * 1000)  # Long-term horizon
 
         # Process pending fills that have reached analysis horizons
         keep: Deque[Dict[str, Any]] = deque(maxlen=self._fills_pending.maxlen)
@@ -453,8 +470,8 @@ class Indicators:
                 # Update exponential moving average of positive markouts
                 self._tox_ema_pos_h1 = self._ema(
                     self._tox_ema_pos_h1, pos,
-                    self.cfg.warmup.tau_fast_s,
-                    self.cfg.warmup.dt_sample_s
+                    self.get_tau_fast_s(),
+                    self.get_dt_sample_s()
                 )
                 f["h1_done"] = True
                 self.logger.write("markout_h1", {"mo": mo, "pos": pos})
@@ -466,8 +483,8 @@ class Indicators:
 
                 self._tox_ema_pos_h2 = self._ema(
                     self._tox_ema_pos_h2, pos,
-                    self.cfg.warmup.tau_fast_s,
-                    self.cfg.warmup.dt_sample_s
+                    self.get_tau_fast_s(),
+                    self.get_dt_sample_s()
                 )
                 f["h2_done"] = True
                 self.logger.write("markout_h2", {"mo": mo, "pos": pos})
@@ -500,7 +517,7 @@ class Indicators:
             This is the core volatility estimation engine that drives
             dynamic risk management and spread scaling decisions.
         """
-        dt_s = self.cfg.warmup.dt_sample_s
+        dt_s = self.get_dt_sample_s()
 
         # Convert market probability to logit space for analysis
         x = logit(p_mid)
@@ -522,15 +539,22 @@ class Indicators:
         self._last_x = x
         abs_r = abs(r)
 
+        # Track activity for meta-calibration
+        self.track_return(r)
+
+        # Track meaningful price changes (> 0.1% in logit space)
+        if abs_r > 0.001:  # ~0.1% in probability space
+            self.track_price_change(t_ms)
+
         # Multi-timeframe volatility estimation using EMAs
         # Fast EMAs capture short-term dynamics, slow EMAs provide baseline
-        self._ema_fast_abs = self._ema(self._ema_fast_abs, abs_r, self.cfg.warmup.tau_fast_s, dt_s)
-        self._ema_slow_abs = self._ema(self._ema_slow_abs, abs_r, self.cfg.warmup.tau_slow_s, dt_s)
+        self._ema_fast_abs = self._ema(self._ema_fast_abs, abs_r, self.get_tau_fast_s(), dt_s)
+        self._ema_slow_abs = self._ema(self._ema_slow_abs, abs_r, self.get_tau_slow_s(), dt_s)
 
         # Directional momentum indicators
-        self._ema_fast_r = self._ema(self._ema_fast_r, r, self.cfg.warmup.tau_fast_s, dt_s)
-        self._ema_fast_abs_r = self._ema(self._ema_fast_abs_r, abs_r, self.cfg.warmup.tau_fast_s, dt_s)
-        self._ema_slow_abs_r = self._ema(self._ema_slow_abs_r, abs_r, self.cfg.warmup.tau_slow_s, dt_s)
+        self._ema_fast_r = self._ema(self._ema_fast_r, r, self.get_tau_fast_s(), dt_s)
+        self._ema_fast_abs_r = self._ema(self._ema_fast_abs_r, abs_r, self.get_tau_fast_s(), dt_s)
+        self._ema_slow_abs_r = self._ema(self._ema_slow_abs_r, abs_r, self.get_tau_slow_s(), dt_s)
 
         # Trading intensity factor (normalized trading activity)
         I = clip(trade_rate_per_s / max(self.cfg.quote.rate_ref_per_s, 1e-9), 1.0, self.cfg.risk.I_max)
@@ -566,6 +590,10 @@ class Indicators:
                else self.cfg.risk.sigma_tau_down_s)
 
         self._sigma_smoothed = self._ema(self._sigma_smoothed, sigma_raw, tau, dt_s)
+
+        # Continuous adaptation of meta-calibrated parameters (every 100 samples)
+        if len(self._returns) % 100 == 0 and len(self._returns) >= 200:
+            self._adapt_meta_parameters()
 
         self.logger.write("sigma_update", {
             "r": r, "J": J, "D": D, "I": I,
@@ -705,6 +733,333 @@ class Indicators:
         # Restore returns deque (convert list back to deque)
         returns_list = calib_data.get("_returns", [])
         self._returns = deque(returns_list, maxlen=5000)
+
+    def track_price_change(self, ts_ms: int) -> None:
+        """Track meaningful price changes for meta-calibration."""
+        self._price_change_times.append(ts_ms)
+
+    def track_trade_arrival(self, ts_ms: int) -> None:
+        """Track trade inter-arrival times for meta-calibration."""
+        if self._last_trade_ts_ms is not None:
+            interarrival = (ts_ms - self._last_trade_ts_ms) / 1000.0  # Convert to seconds
+            self._trade_interarrivals.append(interarrival)
+        self._last_trade_ts_ms = ts_ms
+
+    def track_return(self, r: float) -> None:
+        """Track returns for autocorrelation analysis."""
+        self._recent_returns.append(r)
+
+    def _estimate_autocorr_half_life(self, returns: Optional[List[float]] = None) -> float:
+        """Estimate autocorrelation half-life of returns."""
+        if returns is None:
+            returns = list(self._recent_returns)
+
+        if len(returns) < 20:
+            return 30.0  # Default fallback
+
+        # Calculate autocorrelation at different lags
+        max_lag = min(50, len(returns) // 4)
+        autocorrs = []
+
+        for lag in range(1, max_lag):
+            if len(returns) <= lag:
+                break
+            # Simple autocorrelation calculation
+            mean_r = sum(returns) / len(returns)
+            num = sum((r - mean_r) * (returns[i-lag] - mean_r) for i, r in enumerate(returns[lag:]))
+            denom = sum((r - mean_r) ** 2 for r in returns[lag:])
+            if denom > 0:
+                autocorrs.append(num / denom)
+
+        # Find half-life: where autocorrelation drops to 0.5
+        for i, acorr in enumerate(autocorrs):
+            if acorr < 0.5:
+                return float(i + 1)  # Return lag where it first drops below 0.5
+
+        return float(max_lag)  # If no half-life found, return max lag
+
+    def _estimate_volatility_clustering(self, returns: Optional[List[float]] = None) -> float:
+        """Estimate timescale of volatility clustering."""
+        if returns is None:
+            returns = list(self._recent_returns)
+
+        if len(returns) < 20:
+            return 1800.0  # Default fallback (30 minutes)
+
+        # Calculate absolute returns (volatility proxy)
+        abs_returns = [abs(r) for r in returns]
+
+        # Use autocorrelation of absolute returns to find clustering timescale
+        max_lag = min(100, len(abs_returns) // 4)
+        autocorrs = []
+
+        for lag in range(1, max_lag):
+            if len(abs_returns) <= lag:
+                break
+            mean_abs = sum(abs_returns) / len(abs_returns)
+            num = sum((abs_r - mean_abs) * (abs_returns[i-lag] - mean_abs) for i, abs_r in enumerate(abs_returns[lag:]))
+            denom = sum((abs_r - mean_abs) ** 2 for abs_r in abs_returns[lag:])
+            if denom > 0:
+                autocorrs.append(num / denom)
+
+        # Find where autocorrelation drops significantly
+        for i, acorr in enumerate(autocorrs):
+            if acorr < 0.3:  # More aggressive decay for volatility clustering
+                return float(i + 1) * 30.0  # Convert lags to seconds (assuming ~30s per lag)
+
+        return 1800.0  # Default 30 minutes
+
+    def meta_calibrate_warmup_params(self) -> Optional[MetaWarmupParams]:
+        """Calculate optimal warmup parameters based on observed market activity.
+
+        Analyzes collected activity metrics to determine the best settings for:
+        - dt_sample_s: Sampling frequency
+        - tau_fast_s: Fast EMA time constant
+        - tau_slow_s: Slow EMA time constant
+        - markout_h1_s: Short-term markout horizon
+        - markout_h2_s: Long-term markout horizon
+
+        Returns:
+            MetaWarmupParams with calibrated parameters, or None if insufficient data
+        """
+        from .types import MetaWarmupParams
+
+        # Require minimum data for calibration
+        if len(self._price_change_times) < 50 or len(self._trade_interarrivals) < 20:
+            return None
+
+        # Calculate price change intervals (in seconds)
+        if len(self._price_change_times) >= 2:
+            price_change_intervals = []
+            for i in range(1, len(self._price_change_times)):
+                interval = (self._price_change_times[i] - self._price_change_times[i-1]) / 1000.0
+                if interval > 0.1:  # Filter out noise (intervals < 0.1s)
+                    price_change_intervals.append(interval)
+
+            if price_change_intervals:
+                median_price_interval = sorted(price_change_intervals)[len(price_change_intervals) // 2]
+            else:
+                median_price_interval = 5.0  # Default
+        else:
+            median_price_interval = 5.0
+
+        # Calculate trade inter-arrival statistics
+        if self._trade_interarrivals:
+            sorted_interarrivals = sorted(self._trade_interarrivals)
+            median_trade_interval = sorted_interarrivals[len(sorted_interarrivals) // 2]
+            p95_trade_interval = sorted_interarrivals[int(len(sorted_interarrivals) * 0.95)]
+        else:
+            median_trade_interval = 10.0
+            p95_trade_interval = 60.0
+
+        # Estimate autocorrelation half-life
+        autocorr_half_life = self._estimate_autocorr_half_life()
+
+        # Estimate volatility clustering timescale
+        vol_cluster_timescale = self._estimate_volatility_clustering()
+
+        # Calculate optimal parameters
+
+        # dt_sample_s: Slightly faster than natural price change frequency
+        dt_sample_s = clip(median_price_interval * 0.8, 1.0, 10.0)
+
+        # tau_fast_s: Capture short-term dynamics
+        tau_fast_s = clip(max(autocorr_half_life * 2, dt_sample_s * 3), 10.0, 60.0)
+
+        # tau_slow_s: Establish stable baseline
+        tau_slow_s = clip(max(vol_cluster_timescale, tau_fast_s * 20), 600.0, 3600.0)
+
+        # markout_h1_s: Short-term markout spans multiple trades
+        markout_h1_s = clip(median_trade_interval * 3, 5.0, 30.0)
+
+        # markout_h2_s: Long-term markout covers extended patterns
+        markout_h2_s = clip(p95_trade_interval * 8, 30.0, 300.0)
+
+        # Create activity summary for reference
+        activity_summary = {
+            "n_price_changes": len(self._price_change_times),
+            "median_price_interval_s": median_price_interval,
+            "n_trade_interarrivals": len(self._trade_interarrivals),
+            "median_trade_interval_s": median_trade_interval,
+            "p95_trade_interval_s": p95_trade_interval,
+            "autocorr_half_life_s": autocorr_half_life,
+            "vol_cluster_timescale_s": vol_cluster_timescale,
+        }
+
+        return MetaWarmupParams(
+            dt_sample_s=dt_sample_s,
+            tau_fast_s=tau_fast_s,
+            tau_slow_s=tau_slow_s,
+            markout_h1_s=markout_h1_s,
+            markout_h2_s=markout_h2_s,
+            calibrated_at_ms=now_ms(),
+            market_activity_summary=activity_summary
+        )
+
+    def save_meta_warmup_params(self, path: str, meta_params: MetaWarmupParams) -> None:
+        """Save meta-calibrated warmup parameters to file.
+
+        Args:
+            path: File path to save parameters
+            meta_params: MetaWarmupParams to save
+        """
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w") as f:
+                json.dump({
+                    "dt_sample_s": meta_params.dt_sample_s,
+                    "tau_fast_s": meta_params.tau_fast_s,
+                    "tau_slow_s": meta_params.tau_slow_s,
+                    "markout_h1_s": meta_params.markout_h1_s,
+                    "markout_h2_s": meta_params.markout_h2_s,
+                    "calibrated_at_ms": meta_params.calibrated_at_ms,
+                    "market_activity_summary": meta_params.market_activity_summary
+                }, f, indent=2)
+            self.logger.write("meta_warmup_saved", {"path": path})
+        except Exception as e:
+            self.logger.write("meta_warmup_save_error", {"error": str(e), "path": path})
+
+    def load_meta_warmup_params(self, path: str) -> Optional[MetaWarmupParams]:
+        """Load meta-calibrated warmup parameters from file.
+
+        Args:
+            path: File path to load parameters from
+
+        Returns:
+            MetaWarmupParams if successfully loaded, None otherwise
+        """
+        from .types import MetaWarmupParams
+
+        try:
+            if not os.path.exists(path):
+                return None
+
+            with open(path, "r") as f:
+                data = json.load(f)
+
+            # Validate required fields
+            required_fields = ["dt_sample_s", "tau_fast_s", "tau_slow_s", "markout_h1_s", "markout_h2_s", "calibrated_at_ms"]
+            if not all(field in data for field in required_fields):
+                self.logger.write("meta_warmup_load_error", {"error": "Missing required fields", "path": path})
+                return None
+
+            meta_params = MetaWarmupParams(
+                dt_sample_s=float(data["dt_sample_s"]),
+                tau_fast_s=float(data["tau_fast_s"]),
+                tau_slow_s=float(data["tau_slow_s"]),
+                markout_h1_s=float(data["markout_h1_s"]),
+                markout_h2_s=float(data["markout_h2_s"]),
+                calibrated_at_ms=int(data["calibrated_at_ms"]),
+                market_activity_summary=data.get("market_activity_summary", {})
+            )
+
+            self.logger.write("meta_warmup_loaded", {"path": path, "calibrated_at_ms": meta_params.calibrated_at_ms})
+            return meta_params
+
+        except Exception as e:
+            self.logger.write("meta_warmup_load_error", {"error": str(e), "path": path})
+            return None
+
+    def apply_meta_warmup_params(self, meta_params: MetaWarmupParams) -> None:
+        """Apply meta-calibrated warmup parameters to override config values.
+
+        Args:
+            meta_params: MetaWarmupParams with calibrated values
+        """
+        self._meta_dt_sample_s = meta_params.dt_sample_s
+        self._meta_tau_fast_s = meta_params.tau_fast_s
+        self._meta_tau_slow_s = meta_params.tau_slow_s
+        self._meta_markout_h1_s = meta_params.markout_h1_s
+        self._meta_markout_h2_s = meta_params.markout_h2_s
+
+        self.logger.write("meta_warmup_applied", {
+            "dt_sample_s": self._meta_dt_sample_s,
+            "tau_fast_s": self._meta_tau_fast_s,
+            "tau_slow_s": self._meta_tau_slow_s,
+            "markout_h1_s": self._meta_markout_h1_s,
+            "markout_h2_s": self._meta_markout_h2_s,
+        })
+
+    def get_dt_sample_s(self) -> float:
+        """Get sampling interval, preferring meta-calibrated value over config."""
+        return self._meta_dt_sample_s if self._meta_dt_sample_s is not None else self.cfg.warmup.dt_sample_s
+
+    def get_tau_fast_s(self) -> float:
+        """Get fast EMA time constant, preferring meta-calibrated value over config."""
+        return self._meta_tau_fast_s if self._meta_tau_fast_s is not None else self.cfg.warmup.tau_fast_s
+
+    def get_tau_slow_s(self) -> float:
+        """Get slow EMA time constant, preferring meta-calibrated value over config."""
+        return self._meta_tau_slow_s if self._meta_tau_slow_s is not None else self.cfg.warmup.tau_slow_s
+
+    def get_markout_h1_s(self) -> float:
+        """Get short-term markout horizon, preferring meta-calibrated value over config."""
+        return self._meta_markout_h1_s if self._meta_markout_h1_s is not None else self.cfg.warmup.markout_h1_s
+
+    def get_markout_h2_s(self) -> float:
+        """Get long-term markout horizon, preferring meta-calibrated value over config."""
+        return self._meta_markout_h2_s if self._meta_markout_h2_s is not None else self.cfg.warmup.markout_h2_s
+
+    def _adapt_meta_parameters(self) -> None:
+        """Continuously adapt meta-calibrated parameters based on recent activity.
+
+        Uses EMA-style updates to gradually adjust parameters as market conditions change.
+        Only adapts if sufficient recent data is available and meta-parameters are set.
+        """
+        # Only adapt if meta-parameters are already calibrated
+        if (self._meta_dt_sample_s is None or self._meta_tau_fast_s is None or
+            self._meta_tau_slow_s is None or self._meta_markout_h1_s is None or
+            self._meta_markout_h2_s is None):
+            return
+
+        # Require sufficient recent data for adaptation
+        min_recent_data = 100
+        if (len(self._price_change_times) < min_recent_data or
+            len(self._trade_interarrivals) < min_recent_data // 2 or
+            len(self._recent_returns) < min_recent_data):
+            return
+
+        # Calculate recent activity metrics (last 200 samples)
+        recent_price_changes = list(self._price_change_times)[-min_recent_data:]
+        recent_trade_interarrivals = list(self._trade_interarrivals)[-min_recent_data//2:]
+
+        # Calculate recent price change intervals
+        if len(recent_price_changes) >= 2:
+            recent_intervals = []
+            for i in range(1, len(recent_price_changes)):
+                interval = (recent_price_changes[i] - recent_price_changes[i-1]) / 1000.0
+                if interval > 0.1:  # Filter noise
+                    recent_intervals.append(interval)
+
+            if recent_intervals:
+                median_recent_interval = sorted(recent_intervals)[len(recent_intervals) // 2]
+                # Adapt dt_sample_s: EMA towards 80% of recent median interval
+                target_dt = clip(median_recent_interval * 0.8, 1.0, 10.0)
+                tau_adapt = 7200.0  # 2-hour adaptation time constant
+                self._meta_dt_sample_s = self._ema(self._meta_dt_sample_s, target_dt, tau_adapt, 1.0)
+
+        # Calculate recent trade inter-arrival statistics
+        if recent_trade_interarrivals:
+            sorted_recent_interarrivals = sorted(recent_trade_interarrivals)
+            median_recent_trade_interval = sorted_recent_interarrivals[len(sorted_recent_interarrivals) // 2]
+
+            # Adapt markout horizons based on recent trade frequency
+            target_h1 = clip(median_recent_trade_interval * 3, 5.0, 30.0)
+            target_h2 = clip(median_recent_trade_interval * 8, 30.0, 300.0)
+
+            self._meta_markout_h1_s = self._ema(self._meta_markout_h1_s, target_h1, tau_adapt, 1.0)
+            self._meta_markout_h2_s = self._ema(self._meta_markout_h2_s, target_h2, tau_adapt, 1.0)
+
+        # Log parameter adaptations (infrequent logging)
+        if len(self._returns) % 1000 == 0:  # Log every 1000 samples
+            self.logger.write("meta_param_adaptation", {
+                "dt_sample_s": self._meta_dt_sample_s,
+                "tau_fast_s": self._meta_tau_fast_s,
+                "tau_slow_s": self._meta_tau_slow_s,
+                "markout_h1_s": self._meta_markout_h1_s,
+                "markout_h2_s": self._meta_markout_h2_s,
+                "samples_processed": len(self._returns)
+            })
 
 
 class Quoter:
@@ -992,13 +1347,22 @@ class MarketMakerBot:
             
             # Load calibration into Indicators
             self.ind.load_calibration(calib_data)
-            
+
+            # Try to load meta-calibration parameters
+            meta_path = self.cfg.calib_path.replace('.json', '_meta_warmup.json')
+            meta_params = self.ind.load_meta_warmup_params(meta_path)
+            if meta_params:
+                self.ind.apply_meta_warmup_params(meta_params)
+                print("✓ Loaded meta-calibrated warmup parameters")
+            else:
+                print("ℹ Using default warmup parameters (no meta-calibration found)")
+
             # Check calibration freshness (warn if older than 24 hours)
             if "_last_sample_ts_ms" in calib_data and calib_data["_last_sample_ts_ms"]:
                 age_hours = (now_ms() - calib_data["_last_sample_ts_ms"]) / (1000 * 3600)
                 if age_hours > 24:
                     print(f"⚠ Warning: Calibration is {age_hours:.1f} hours old. Consider re-running warmup.")
-            
+
             self.logger.write("calib_loaded", {
                 "n_returns": calib_data.get("n_returns", 0),
                 "sigma": calib_data.get("_sigma_smoothed", 1.0)

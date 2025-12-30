@@ -22,17 +22,27 @@ from .trading import Indicators
 from .utils import now_ms
 
 
-def print_calibration_report(snap: dict, cfg, collection_time_s: float, price_range: tuple, avg_spread: float, trade_rate: float):
+def print_calibration_report(snap: dict, cfg, collection_time_s: float, price_range: tuple, avg_spread: float, trade_rate: float, meta_params=None):
     """Print human-readable calibration report."""
     print("\n" + "=" * 40)
     print("CALIBRATION REPORT")
     print("=" * 40)
-    
+
     # Basic stats
     n_samples = snap.get("n_returns", 0)
     req_samples = cfg.warmup.min_return_samples
     print(f"Samples Collected: {n_samples} / {req_samples}")
     print(f"Collection Time: {int(collection_time_s // 60)}m {int(collection_time_s % 60)}s")
+
+    # Meta-calibration info
+    if meta_params:
+        print("\nMeta-Calibration Applied:")
+        print(".1f"        print(".1f"        print(".1f"        print(".1f"        print(".1f"        activity = meta_params.market_activity_summary
+        if activity:
+            print("
+Market Activity Observed:"            print(f"  - Price Changes: {activity.get('n_price_changes', 0)}")
+            print(".1f"            print(".1f"            print(".1f"            print(".1f"            print(".1f"    else:
+        print("\nMeta-Calibration: Not applied (insufficient data)")
     
     # Volatility metrics
     sigma_base = snap.get("sigma_base_logit_per_dt", 0.0)
@@ -107,9 +117,10 @@ async def run_warmup(cfg_path: str):
     ind = Indicators(cfg, logger)
     
     print(f"--- Starting Warmup for {cfg.warmup.max_warmup_s}s ---")
-    print(f"Goal: Collect {cfg.warmup.min_return_samples} return samples.")
-    print(f"Sample interval: {cfg.warmup.dt_sample_s}s")
-    print("\nPress Ctrl+C to stop early and save current calibration.\n")
+    print(f"Phase 1: Observation (collecting market activity data)")
+    print(f"Phase 2: Meta-calibration (optimizing warmup parameters)")
+    print(f"Phase 3: Calibration (collecting {cfg.warmup.min_return_samples} return samples)")
+    print(f"\nPress Ctrl+C to stop early and save current calibration.\n")
     
     shutdown_event = asyncio.Event()
     
@@ -161,52 +172,117 @@ async def run_warmup(cfg_path: str):
     # Start WebSocket task
     ws_task = asyncio.create_task(ws_loop())
     
-    # Data collection loop
+    # Three-phase warmup
     t0 = time.time()
     last_progress_print = 0.0
     price_history = []
     spread_history = []
-    
+
+    # Phase tracking
+    PHASE_OBSERVATION = 0
+    PHASE_METACALIBRATION = 1
+    PHASE_CALIBRATION = 2
+
+    current_phase = PHASE_OBSERVATION
+    phase_start_time = t0
+    meta_params = None
+
+    # Phase 1: Observation parameters (fast sampling to collect activity data)
+    observation_duration_s = min(600.0, cfg.warmup.max_warmup_s * 0.2)  # Up to 10 minutes or 20% of total time
+    observation_sample_interval = 1.0  # Fast sampling for activity detection
+
     try:
         while not shutdown_event.is_set():
             p = md.state.mid
             if not (0.0 < p < 1.0):
                 await asyncio.sleep(0.2)
                 continue
-            
+
             # Track price and spread for report
             price_history.append(p)
             if md.state.best_bid > 0 and md.state.best_ask < 1:
                 spread_history.append(md.state.best_ask - md.state.best_bid)
-            
+
+            current_time = time.time()
+            elapsed = current_time - t0
+            phase_elapsed = current_time - phase_start_time
+
+            # Phase management
+            if current_phase == PHASE_OBSERVATION:
+                # Phase 1: Collect activity data with fast sampling
+                sample_interval = observation_sample_interval
+
+                # Check if we should move to Phase 2
+                if phase_elapsed >= observation_duration_s:
+                    print("
+✓ Phase 1 complete: Collected activity data")
+                    print("Phase 2: Meta-calibrating warmup parameters...")
+
+                    # Perform meta-calibration
+                    meta_params = ind.meta_calibrate_warmup_params()
+                    if meta_params:
+                        # Apply meta-calibrated parameters
+                        ind.apply_meta_warmup_params(meta_params)
+
+                        # Save meta-calibration
+                        meta_path = cfg.calib_path.replace('.json', '_meta_warmup.json')
+                        ind.save_meta_warmup_params(meta_path, meta_params)
+
+                        print("✓ Phase 2 complete: Meta-calibration applied")
+                        print(".1f"                        print(".1f"                        print(".1f"                        print(".1f"                    else:
+                        print("⚠ Phase 2: Insufficient data for meta-calibration, using config defaults")
+
+                    # Move to Phase 3
+                    current_phase = PHASE_CALIBRATION
+                    phase_start_time = current_time
+                    print("Phase 3: Collecting return samples with calibrated parameters...")
+
+            else:
+                # Phase 2 & 3: Use meta-calibrated or config parameters
+                sample_interval = ind.get_dt_sample_s()
+
+            # Throttle sampling based on current phase requirements
+            if (current_time - (ind._last_sample_ts_ms / 1000.0 if ind._last_sample_ts_ms else 0)) < sample_interval:
+                await asyncio.sleep(0.1)
+                continue
+
             # Update indicators
             tr = md.trade_rate_per_s(window_s=60.0)
             ind.on_time_sample(now_ms(), p, tr)
             ind.update_markouts(now_ms(), p)
-            
+
             # Progress reporting
             n = len(ind._returns)
             req = cfg.warmup.min_return_samples
-            elapsed = time.time() - t0
-            
+
             # Print progress every 5 seconds
-            if time.time() - last_progress_print >= 5.0:
-                progress_pct = min(100, (n / req) * 100) if req > 0 else 0
-                print(f"\rProgress: {n}/{req} samples ({progress_pct:.1f}%) | "
-                      f"Current Sigma: {ind.sigma():.2f} | "
+            if current_time - last_progress_print >= 5.0:
+                if current_phase == PHASE_OBSERVATION:
+                    progress_pct = min(100, (phase_elapsed / observation_duration_s) * 100)
+                    phase_name = "Observation"
+                elif current_phase == PHASE_CALIBRATION:
+                    progress_pct = min(100, (n / req) * 100) if req > 0 else 0
+                    phase_name = "Calibration"
+                else:
+                    progress_pct = 100
+                    phase_name = "Meta-calibration"
+
+                print(f"\r[{phase_name}] Progress: {progress_pct:.1f}% | "
+                      f"Samples: {n}/{req} | "
+                      f"Sigma: {ind.sigma():.2f} | "
                       f"Elapsed: {int(elapsed // 60)}m {int(elapsed % 60)}s", end="", flush=True)
-                last_progress_print = time.time()
-            
-            # Check completion conditions
-            if ind.warm_ready():
+                last_progress_print = current_time
+
+            # Check completion conditions (only in calibration phase)
+            if current_phase == PHASE_CALIBRATION and ind.warm_ready():
                 print("\n✓ Warmup complete: Sufficient samples collected")
                 break
-            
+
             if elapsed >= cfg.warmup.max_warmup_s:
                 print(f"\n⚠ Warmup timeout: Max time ({cfg.warmup.max_warmup_s}s) reached")
                 break
-            
-            await asyncio.sleep(0.2)
+
+            await asyncio.sleep(0.1)  # Slightly faster polling for responsiveness
     
     finally:
         # Cancel WebSocket task
@@ -231,7 +307,7 @@ async def run_warmup(cfg_path: str):
             json.dump(snap, fp, indent=2)
         
         # Print report
-        print_calibration_report(snap, cfg, collection_time, price_range, avg_spread, trade_rate)
+        print_calibration_report(snap, cfg, collection_time, price_range, avg_spread, trade_rate, meta_params)
         
         logger.write("warmup_done", snap)
         logger.close()
