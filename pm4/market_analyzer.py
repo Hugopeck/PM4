@@ -27,9 +27,11 @@ def extract_market_slug(url_or_slug: str) -> str:
     patterns = [
         r'polymarket\.com/market/([^/?]+)',           # Standard market URLs
         r'polymarket\.com/event/[^/]+/([^/?]+)',      # Event URLs: /event/event-id/market-slug
+        r'polymarket\.com/event/([^/?]+)',            # Direct event URLs: /event/market-slug (no event-id)
         r'gamma\.polymarket\.com/market/([^/?]+)',    # Gamma market URLs
         r'https?://[^/]+/market/([^/?]+)',            # Generic market URLs
-        r'https?://[^/]+/event/[^/]+/([^/?]+)'        # Generic event URLs
+        r'https?://[^/]+/event/[^/]+/([^/?]+)',       # Generic event URLs with event-id
+        r'https?://[^/]+/event/([^/?]+)'              # Generic direct event URLs
     ]
 
     for pattern in patterns:
@@ -56,11 +58,12 @@ class MarketAnalysis:
     volume24hr: float  # 24h volume (USD)
     volume24hrClob: float  # 24h CLOB volume (USD)
     volume24hrAmm: float  # 24h AMM volume (USD)
-    last_trade_hours: float
+    last_trade_hours: Optional[float]  # None if unknown but recent activity, 999 if no activity
     # Market structure
     time_to_resolution_days: int
     end_date: Optional[str] = None
     start_date: Optional[str] = None
+    created_date: Optional[str] = None
     # Extended metrics
     volume1wk: float = 0.0
     volume1wkAmm: float = 0.0
@@ -95,7 +98,7 @@ class MarketAnalysis:
         # Check critical market making requirements
         has_liquidity = (self.liquidityClob + self.liquidityAmm) > 1000
         has_tight_spread = self.spread > 0 and self.spread < 0.05
-        has_activity = self.volume24hr > 10000 or self.last_trade_hours < 24
+        has_activity = self.volume24hr > 10000 or (self.last_trade_hours is not None and self.last_trade_hours < 24)
         has_time = self.time_to_resolution_days >= 7
         
         if has_liquidity and has_tight_spread and has_activity and has_time:
@@ -188,10 +191,11 @@ class MarketAnalyzer:
                 volume24hr=0.0,
                 volume24hrClob=0.0,
                 volume24hrAmm=0.0,
-                last_trade_hours=999.0,
+                last_trade_hours=999.0,  # No data available
                 time_to_resolution_days=0,
                 end_date=None,
                 start_date=None,
+                created_date=None,
                 volume_24h=0.0,
                 price_range_24h=(0.0, 1.0)
             )
@@ -210,6 +214,7 @@ class MarketAnalyzer:
         # Extract dates
         end_date = data.get('endDate', None)
         start_date = data.get('startDate', None)
+        created_date = data.get('createdAt', data.get('created_at', None))
         
         # Calculate time to resolution
         try:
@@ -273,11 +278,25 @@ class MarketAnalyzer:
         rewardsMaxSpread = safe_float(data.get('rewardsMaxSpread', 0))
         
         # Check recent activity
-        last_trade_ts = data.get('lastTradeTimestamp', 0)
+        # Note: Polymarket Gamma API doesn't provide lastTradeTimestamp
+        # We can only infer activity from volume data
+        last_trade_ts = data.get('lastTradeTimestamp', None)
         if last_trade_ts:
-            hours_since_trade = (now_ms() - last_trade_ts) / (1000 * 3600)
+            # If timestamp is provided (in milliseconds), calculate hours
+            if isinstance(last_trade_ts, (int, float)) and last_trade_ts > 0:
+                # Handle both milliseconds and seconds
+                if last_trade_ts < 1e10:  # Likely seconds
+                    last_trade_ts = int(last_trade_ts * 1000)
+                hours_since_trade = (now_ms() - last_trade_ts) / (1000 * 3600)
+            else:
+                hours_since_trade = None  # Invalid timestamp
         else:
-            hours_since_trade = 24  # Assume no recent activity
+            # No timestamp available - infer from volume
+            # If there's 24h volume, there was trading recently, but we don't know exactly when
+            if volume24hr > 0:
+                hours_since_trade = None  # Unknown but recent (within 24h)
+            else:
+                hours_since_trade = 999  # No recent activity (no volume)
 
         # Legacy fields for compatibility
         volume_24h = volume24hr
@@ -339,6 +358,7 @@ class MarketAnalyzer:
             time_to_resolution_days=days_to_resolution,
             end_date=end_date,
             start_date=start_date,
+            created_date=created_date,
             # Extended metrics
             volume1wk=volume1wk,
             volume1wkAmm=volume1wkAmm,
@@ -455,7 +475,7 @@ class MarketAnalyzer:
         print("ACTIVITY METRICS")
         print(f"{'─'*70}")
         
-        # Volume
+        # Volume metrics
         if analysis.volume24hr > 0:
             print(f"24h Volume:")
             print(f"  Total: ${analysis.volume24hr:,.0f}")
@@ -473,25 +493,55 @@ class MarketAnalyzer:
         else:
             print(f"24h Volume: No data available")
         
-        print()
-        
-        # Recent activity
-        print(f"Last Trade: {analysis.last_trade_hours:.1f} hours ago")
-        if analysis.last_trade_hours < 1:
-            print(f"  Context: Very recent activity")
-        elif analysis.last_trade_hours < 6:
-            print(f"  Context: Recent activity (typical: < 6 hours)")
-        elif analysis.last_trade_hours < 24:
-            print(f"  Context: Moderate activity (typical: < 6 hours)")
-        else:
-            print(f"  Context: Stale market (typical: < 6 hours)")
+        if analysis.volume1wk > 0:
+            print(f"1 Week Volume: ${analysis.volume1wk:,.0f}")
         
         print()
+        
+        # Price changes
+        if analysis.oneHourPriceChange != 0 or analysis.oneDayPriceChange != 0 or analysis.oneWeekPriceChange != 0:
+            print(f"Price Changes:")
+            if analysis.oneHourPriceChange != 0:
+                print(f"  1 Hour:  {analysis.oneHourPriceChange*100:+.2f}%")
+            if analysis.oneDayPriceChange != 0:
+                print(f"  1 Day:   {analysis.oneDayPriceChange*100:+.2f}%")
+            if analysis.oneWeekPriceChange != 0:
+                print(f"  1 Week:  {analysis.oneWeekPriceChange*100:+.2f}%")
+            print()
+        
+        # Additional activity indicators
+        if analysis.active_traders > 0:
+            print(f"Active Traders: {analysis.active_traders}")
+            print()
+        
+        # Liquidity rewards (if available)
+        if analysis.rewardsMinSize > 0:
+            print(f"Liquidity Rewards:")
+            print(f"  Min Size: ${analysis.rewardsMinSize:,.0f}")
+            if analysis.rewardsMaxSpread > 0:
+                print(f"  Max Spread: {analysis.rewardsMaxSpread:.2f}%")
+            print()
         
         # ===== MARKET STRUCTURE =====
         print(f"{'─'*70}")
         print("MARKET STRUCTURE")
         print(f"{'─'*70}")
+        
+        # Market creation date
+        if analysis.created_date:
+            try:
+                created_dt = datetime.fromisoformat(analysis.created_date.replace('Z', '+00:00'))
+                now = datetime.now(created_dt.tzinfo)
+                days_since_creation = (now - created_dt).days
+                print(f"Created: {analysis.created_date[:10]} ({days_since_creation} days ago)")
+            except Exception:
+                print(f"Created: {analysis.created_date}")
+        
+        # Start and end dates
+        if analysis.start_date:
+            print(f"Start Date: {analysis.start_date[:10] if len(analysis.start_date) > 10 else analysis.start_date}")
+        if analysis.end_date:
+            print(f"End Date: {analysis.end_date[:10] if len(analysis.end_date) > 10 else analysis.end_date}")
         
         print(f"Time to Resolution: {analysis.time_to_resolution_days} days")
         if analysis.time_to_resolution_days < 7:
@@ -502,36 +552,6 @@ class MarketAnalyzer:
             print(f"  Context: Long horizon - extended trading opportunity")
         
         print()
-        
-        # ===== ADDITIONAL METRICS =====
-        if (analysis.volume1wk > 0 or analysis.oneDayPriceChange != 0 or 
-            analysis.rewardsMinSize > 0 or analysis.active_traders > 0):
-            print(f"{'─'*70}")
-            print("ADDITIONAL METRICS")
-            print(f"{'─'*70}")
-            
-            if analysis.volume1wk > 0:
-                print(f"1 Week Volume: ${analysis.volume1wk:,.0f}")
-            
-            if analysis.oneHourPriceChange != 0 or analysis.oneDayPriceChange != 0 or analysis.oneWeekPriceChange != 0:
-                print(f"Price Changes:")
-                if analysis.oneHourPriceChange != 0:
-                    print(f"  1 Hour:  {analysis.oneHourPriceChange*100:+.2f}%")
-                if analysis.oneDayPriceChange != 0:
-                    print(f"  1 Day:   {analysis.oneDayPriceChange*100:+.2f}%")
-                if analysis.oneWeekPriceChange != 0:
-                    print(f"  1 Week:  {analysis.oneWeekPriceChange*100:+.2f}%")
-            
-            if analysis.rewardsMinSize > 0:
-                print(f"Liquidity Rewards:")
-                print(f"  Min Size: ${analysis.rewardsMinSize:,.0f}")
-                if analysis.rewardsMaxSpread > 0:
-                    print(f"  Max Spread: {analysis.rewardsMaxSpread:.2f}%")
-            
-            if analysis.active_traders > 0:
-                print(f"Active Traders: {analysis.active_traders}")
-            
-            print()
         
         # ===== TECHNICAL DETAILS =====
         if analysis.token_id_yes or analysis.token_id_no:

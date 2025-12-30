@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.1.3] - 2024-12-30
+## [0.1.3] - 2025-12-30
 
 ### Added
 - **Meta-Calibration System**: Self-tuning warmup parameters based on market activity
@@ -24,6 +24,11 @@
   - Changed recommendation system to factual status (VIABLE/MARGINAL/LIMITED)
   - Added `--output` flag to save reports to file (`data/temp/` by default)
   - Enhanced price extraction to prioritize bid/ask mid-price calculation
+  - Removed "Last Trade" section (API doesn't provide reliable timestamps)
+  - Merged "Activity Metrics" and "Additional Metrics" into unified "Activity Metrics" section
+  - Added market creation date to Market Structure section with days since creation
+  - Fixed URL pattern matching to support direct `/event/market-slug` URLs (without event-id)
+  - Improved last trade timestamp handling (shows "Unknown" when timestamp unavailable but volume exists)
 
 ### Technical Details
 - **Meta-Calibration Algorithm**: Analyzes 100+ activity metrics to optimize 5 warmup parameters
@@ -31,7 +36,7 @@
 - **Backward Compatibility**: Falls back to config defaults when meta-calibration unavailable
 - **Robust Statistical Methods**: Uses median-based metrics to handle outliers and market noise
 
-## [0.1.2] - 2024-12-30
+## [0.1.2] - 2025-12-30
 
 ### Added
 - Comprehensive API data expansion in `market_analyzer`:
@@ -83,7 +88,7 @@
   - Embeds complete market analysis in generated config files
   - Uses API-derived dates for accurate start/resolution timestamps
 
-## [0.1.1] - 2024-12-29
+## [0.1.1] - 2025-12-29
 
 ### Added
 - `pm4.market_analyzer` module for automated market suitability analysis
@@ -104,7 +109,7 @@
 - Date utilities support multiple formats (YYYY-MM-DD, Month DD, YYYY, etc.)
 - Comprehensive config documentation prevents misconfiguration
 
-## [0.1.0] - 2024-12-29
+## [0.1.0] - 2025-12-29
 
 ### Added
 - `pm4.warmup` module for standalone calibration and data collection

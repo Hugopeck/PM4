@@ -50,7 +50,7 @@ PM4 provides **three automated tools** that transform manual market analysis int
 
 | Tool | Purpose | Input | Output |
 |------|---------|-------|--------|
-| `market_analyzer` | **Market Evaluation** | URL or slug | Suitability score + recommendation |
+| `market_analyzer` | **Market Status Report** | URL or slug | Factual metrics with definitions and context |
 | `market_config_helper` *(CLI)* | **Config Generation** | URL + options | Complete config.json file |
 | `market_config_helper --interactive` | **Guided Setup** | Interactive prompts | Step-by-step config creation |
 
@@ -60,22 +60,25 @@ PM4 provides **three automated tools** that transform manual market analysis int
 
 ### **1. Market Analyzer (`pm4.market_analyzer`)**
 
-**Purpose**: Objectively evaluates if a market is suitable for PM4 trading.
+**Purpose**: Provides factual market status report with definitions and context for market making evaluation.
 
 **Usage:**
 ```bash
-# Analyze any Polymarket market
+# Analyze any Polymarket market (prints to console)
 python -m pm4.market_analyzer "https://polymarket.com/market/will-ethereum-reach-10k-before-2025"
 
 # Or use just the slug (both work!)
 python -m pm4.market_analyzer "will-ethereum-reach-10k-before-2025"
+
+# Save report to file
+python -m pm4.market_analyzer "market-url" --output "report.txt"
 ```
 
 **What it reports:**
 - 📊 **Core Metrics**: Spread, liquidity, current price (most important for market making)
-- 📈 **Activity Metrics**: 24h volume, recent trades, price changes
-- 🏗️ **Market Structure**: Time to resolution, dates
-- 📚 **Definitions**: Explains key terms (spread, liquidity, CLOB vs AMM)
+- 📈 **Activity Metrics**: 24h volume, 1-week volume, price changes, active traders, liquidity rewards
+- 🏗️ **Market Structure**: Creation date, start/end dates, time to resolution
+- 📚 **Definitions**: Explains key terms (spread, liquidity, volume, CLOB vs AMM)
 - 📊 **Context**: Typical ranges for each metric to help interpretation
 
 **Status Levels:**
@@ -104,6 +107,13 @@ Liquidity: Available capital in order book (CLOB) or AMM pool.
           Higher liquidity = easier to enter/exit positions without slippage.
           Typical range: $1k-$100k+ for active markets.
 
+Volume: Total trading activity over time period.
+       Higher volume = more opportunities to capture spread.
+       Typical range: $10k-$500k+ per day for active markets.
+
+CLOB: Central Limit Order Book - traditional exchange with limit orders.
+AMM: Automated Market Maker - liquidity pool with constant product formula.
+
 ──────────────────────────────────────────────────────────────────────
 CORE MARKET MAKING METRICS
 ──────────────────────────────────────────────────────────────────────
@@ -119,6 +129,28 @@ Liquidity:
 
 Current Price: 0.3500 (35.00%)
   Context: Mid-range price (20-80%) - typical for market making
+
+──────────────────────────────────────────────────────────────────────
+ACTIVITY METRICS
+──────────────────────────────────────────────────────────────────────
+24h Volume:
+  Total: $125,430
+  Context: High volume (typical: $10k-$500k+ per day)
+1 Week Volume: $850,230
+
+Price Changes:
+  1 Hour:  +0.15%
+  1 Day:   -2.50%
+  1 Week:  -2.65%
+
+──────────────────────────────────────────────────────────────────────
+MARKET STRUCTURE
+──────────────────────────────────────────────────────────────────────
+Created: 2025-01-01 (120 days ago)
+Start Date: 2025-01-01
+End Date: 2025-12-31
+Time to Resolution: 245 days
+  Context: Long horizon - extended trading opportunity
 ```
 
 ### **2. Market Config Helper CLI (`pm4.market_config_helper`)**
@@ -230,7 +262,7 @@ python -m pm4.market_analyzer "https://polymarket.com/market/will-ethereum-reach
 **What the report provides:**
 - ✅ **Definitions**: Explains spread, liquidity, volume, CLOB vs AMM
 - ✅ **Core Metrics**: Spread, liquidity, price with context and typical ranges
-- ✅ **Activity Data**: Volume, recent trades, price changes
+- ✅ **Activity Data**: Volume (24h and 1-week), price changes, active traders, liquidity rewards
 - ✅ **Market Structure**: Time to resolution, dates
 - ✅ **Context**: Each metric includes typical ranges for interpretation
 
@@ -593,7 +625,7 @@ python -m pm4.market_config_helper --interactive --skip-analysis
 
 ---
 
-*Last updated: December 29, 2024*
+*Last updated: December 30, 2025*
 
 **Example Output:**
 ```
@@ -637,9 +669,21 @@ ACTIVITY METRICS
 24h Volume:
   Total: $125,430
   Context: High volume (typical: $10k-$500k+ per day)
+1 Week Volume: $850,230
 
-Last Trade: 0.8 hours ago
-  Context: Recent activity (typical: < 6 hours)
+Price Changes:
+  1 Hour:  +0.15%
+  1 Day:   -2.50%
+  1 Week:  -2.65%
+
+──────────────────────────────────────────────────────────────────────
+MARKET STRUCTURE
+──────────────────────────────────────────────────────────────────────
+Created: 2025-01-01 (120 days ago)
+Start Date: 2025-01-01
+End Date: 2025-12-31
+Time to Resolution: 245 days
+  Context: Long horizon - extended trading opportunity
 ```
 
 **Automated Config Generation:**
@@ -774,7 +818,7 @@ You should see output like:
 No orders will be placed. Watching market and printing theoretical quotes...
 ========================================
 
-[2024-12-29 14:30:15] p=0.480 q=0.0 sig=1.15 r=-0.042 n_bids=3 n_asks=3
+[2025-12-29 14:30:15] p=0.480 q=0.0 sig=1.15 r=-0.042 n_bids=3 n_asks=3
 [DRY] WOULD PLACE BUY: 25.0 @ 0.475 (order_id: dry_run_BUY_0x123_4750)
 [DRY] WOULD PLACE BUY: 20.0 @ 0.465 (order_id: dry_run_BUY_0x123_4650)
 [DRY] WOULD PLACE SELL: 25.0 @ 0.485 (order_id: dry_run_SELL_0x456_4850)
@@ -987,7 +1031,7 @@ Sigma: 3.5 (VERY HIGH VOLATILITY)
 
 #### **No Quotes Generated**
 ```
-[2024-12-29 14:30:15] p=0.480 q=0.0 sig=1.15 r=-0.042 n_bids=0 n_asks=0
+[2025-12-29 14:30:15] p=0.480 q=0.0 sig=1.15 r=-0.042 n_bids=0 n_asks=0
 ```
 **Solution:** Check risk parameters or market conditions
 
@@ -1047,4 +1091,4 @@ Trade Rate: 0.002/sec
 
 ---
 
-*Last updated: December 29, 2024*
+*Last updated: December 30, 2025*

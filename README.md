@@ -183,6 +183,13 @@ Liquidity: Available capital in order book (CLOB) or AMM pool.
           Higher liquidity = easier to enter/exit positions without slippage.
           Typical range: $1k-$100k+ for active markets.
 
+Volume: Total trading activity over time period.
+       Higher volume = more opportunities to capture spread.
+       Typical range: $10k-$500k+ per day for active markets.
+
+CLOB: Central Limit Order Book - traditional exchange with limit orders.
+AMM: Automated Market Maker - liquidity pool with constant product formula.
+
 ──────────────────────────────────────────────────────────────────────
 CORE MARKET MAKING METRICS
 ──────────────────────────────────────────────────────────────────────
@@ -205,9 +212,21 @@ ACTIVITY METRICS
 24h Volume:
   Total: $125,430
   Context: High volume (typical: $10k-$500k+ per day)
+1 Week Volume: $850,230
 
-Last Trade: 0.8 hours ago
-  Context: Recent activity (typical: < 6 hours)
+Price Changes:
+  1 Hour:  +0.15%
+  1 Day:   -2.50%
+  1 Week:  -2.65%
+
+──────────────────────────────────────────────────────────────────────
+MARKET STRUCTURE
+──────────────────────────────────────────────────────────────────────
+Created: 2025-01-01 (120 days ago)
+Start Date: 2025-01-01
+End Date: 2025-12-31
+Time to Resolution: 245 days
+  Context: Long horizon - extended trading opportunity
 ```
 
 #### **Generate Configuration Templates:**
