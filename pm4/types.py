@@ -21,7 +21,7 @@ class WarmupConfig:
 @dataclass
 class RiskConfig:
     """Risk management configuration parameters."""
-    bankroll_B: float = 500.0
+    bankroll_B: float = 50.0
     n_plays: int = 3
     eta_time: float = 0.5
     slippage_buffer: float = 0.10

@@ -1,6 +1,7 @@
 python-dotenv==1.2.1
 py-clob-client
 websockets>=11.0
+requests>=2.31.0
 
 # Testing dependencies
 pytest>=7.0.0

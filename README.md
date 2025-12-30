@@ -1,7 +1,7 @@
 # PM4 - Prediction Market's Market Maker
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-0.1.2-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A high-frequency market making bot implementing the **PM4 model**: an Avellaneda-Stoikov inspired quantitative framework specifically adapted for prediction markets. Combines position sizing, real-time toxicity detection, and marchetype-aware structural risk adjustment.
@@ -129,28 +129,22 @@ export CLOB_PASS_PHRASE="your_passphrase"   # Optional, auto-derived if missing
 export FUNDER_ADDRESS="your_funder_address" # Optional, for gasless trading
 ```
 
-2. **Configure Markets:**
-Edit `config.json` to specify target markets and risk parameters:
+2. **Automated Market Setup:**
+Use PM4's automated tools to generate complete configurations:
 
-```json
-{
-  "market": {
-    "market": "0x_CONDITION_ID",
-    "asset_id_yes": "0x_YES_TOKEN_ID",
-    "asset_id_no": "0x_NO_TOKEN_ID",
-    "start_ts_ms": 1710000000000,
-    "resolve_ts_ms": 1720000000000
-  },
-  "risk": {
-    "bankroll_B": 50.0,  // Start small for testing
-    "n_plays": 1
-  },
-  "logging": {
-    "level": "DEBUG",
-    "enable_performance": true
-  }
-}
+```bash
+# Generate config automatically from Polymarket URL
+python -m pm4.market_config_helper "https://polymarket.com/market/your-market-url"
+
+# Or use interactive mode for guided setup
+python -m pm4.market_config_helper --interactive
 ```
+
+The config helper automatically:
+- Extracts market condition ID and token IDs from Polymarket API
+- Sets timestamps from market start/end dates
+- Includes market analysis data
+- Uses safe default risk parameters
 
 ### Market Analysis & Setup
 
@@ -196,10 +190,11 @@ python -m pm4.market_config_helper --interactive
 ```
 
 **Benefits:**
-- Automated market evaluation based on volume, liquidity, and activity
-- Objective recommendations to avoid unsuitable markets
-- Guided configuration setup with market analysis
-- Interactive workflow for first-time users
+- Fully automated market evaluation based on comprehensive API data
+- Automatic extraction of market IDs, token IDs, and timestamps from Polymarket
+- Objective recommendations based on volume, liquidity, activity, and order book metrics
+- Complete configuration generation with embedded market analysis
+- Interactive workflow for guided setup
 
 ### Running
 

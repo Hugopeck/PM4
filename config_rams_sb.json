@@ -1,0 +1,72 @@
+{
+  "market": {
+    "market": "0x2b57ed983eb34b5e081fc8dcc1372d688963fd4d9c9018b8d2ba36867b26b236",
+    "asset_id_yes": "67458767289404585234744660199191729864647269546936372565997492523516079162996",
+    "asset_id_no": "113554675031456886662456333518442351760965732494459471513820718399879139049322",
+    "start_ts_ms": 1746121563814,
+    "resolve_ts_ms": 1770552000000,
+    "wss_url": "wss://ws-subscriptions-clob.polymarket.com/ws/market"
+  },
+  "_market_analysis": {
+    "slug": "will-the-los-angeles-rams-win-super-bowl-2026",
+    "volume_24h": 3669413.982905,
+    "active_traders": 0,
+    "current_price": 0.5,
+    "recommendation": "CONDITIONAL",
+    "analyzed_at": "2025-12-29 20:07:10"
+  },
+  "warmup": {
+    "dt_sample_s": 5.0,
+    "min_return_samples": 360,
+    "max_warmup_s": 7200,
+    "tau_fast_s": 30.0,
+    "tau_slow_s": 1800.0,
+    "markout_h1_s": 10.0,
+    "markout_h2_s": 60.0
+  },
+  "risk": {
+    "bankroll_B": 50.0,
+    "n_plays": 3,
+    "eta_time": 0.5,
+    "slippage_buffer": 0.1,
+    "gamma_a": 1.0,
+    "gamma_max": 50.0,
+    "lambda_min": 0.8,
+    "lambda_max": 2.0,
+    "beta_p": 0.7,
+    "alpha_U": 0.5,
+    "U_ref": 50.0,
+    "w_A": 1.0,
+    "w_L": 1.0,
+    "s_scale": 1.0,
+    "I_max": 3.0,
+    "c_tox": 1.0,
+    "c_sigma": 1.0,
+    "nu_sigma": 1.4,
+    "sigma_max": 6.0,
+    "sigma_tau_up_s": 10.0,
+    "sigma_tau_down_s": 90.0
+  },
+  "quote": {
+    "c_risk": 0.2,
+    "kappa0": 1.0,
+    "rate_ref_per_s": 0.05,
+    "min_half_spread_prob": 0.01,
+    "max_half_spread_logit": 1.5,
+    "ladder_decay": 0.8,
+    "ladder_step_mult": 0.5,
+    "ladder_min_step_logit": 0.05,
+    "ladder_max_levels": 5,
+    "min_order_size": 1.0,
+    "max_order_notional_side": 100.0,
+    "refresh_s": 2.0,
+    "price_move_requote_ticks": 1
+  },
+  "logging": {
+    "level": "DEBUG",
+    "enable_performance": true,
+    "enable_context_tracking": false
+  },
+  "log_path": "./data/mm_events.jsonl",
+  "calib_path": "./data/warm_calibration.json"
+}

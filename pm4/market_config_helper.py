@@ -19,9 +19,11 @@ def extract_market_slug(url: str) -> str:
     """Extract market slug from Polymarket URL."""
     # Handle various Polymarket URL formats
     patterns = [
-        r'polymarket\.com/market/([^/?]+)',
-        r'gamma\.polymarket\.com/market/([^/?]+)',
-        r'https?://[^/]+/market/([^/?]+)'
+        r'polymarket\.com/market/([^/?]+)',           # Standard market URLs
+        r'polymarket\.com/event/[^/]+/([^/?]+)',      # Event URLs: /event/event-id/market-slug
+        r'gamma\.polymarket\.com/market/([^/?]+)',    # Gamma market URLs
+        r'https?://[^/]+/market/([^/?]+)',            # Generic market URLs
+        r'https?://[^/]+/event/[^/]+/([^/?]+)'        # Generic event URLs
     ]
 
     for pattern in patterns:
@@ -54,14 +56,38 @@ def format_config_for_market(market_slug: str, custom_bankroll: Optional[float] 
             }
         }
     else:
+        # Convert dates to timestamps
+        start_ts_ms = 1700000000000  # Default
+        resolve_ts_ms = 1735000000000  # Default
+        
+        if analysis.start_date:
+            try:
+                from datetime import datetime
+                start_dt = datetime.fromisoformat(analysis.start_date.replace('Z', '+00:00'))
+                start_ts_ms = int(start_dt.timestamp() * 1000)
+            except Exception:
+                pass
+        
+        if analysis.end_date:
+            try:
+                from datetime import datetime
+                end_dt = datetime.fromisoformat(analysis.end_date.replace('Z', '+00:00'))
+                resolve_ts_ms = int(end_dt.timestamp() * 1000)
+            except Exception:
+                pass
+        
+        # Use token IDs from analysis if available, otherwise use placeholders
+        asset_id_yes = analysis.token_id_yes if analysis.token_id_yes else "0x_YES_TOKEN_ID"
+        asset_id_no = analysis.token_id_no if analysis.token_id_no else "0x_NO_TOKEN_ID"
+        
         # Use actual market data
         config = {
             "market": {
                 "market": analysis.condition_id,
-                "asset_id_yes": "0x_YES_TOKEN_ID",  # TODO: Get from market page
-                "asset_id_no": "0x_NO_TOKEN_ID",   # TODO: Get from market page
-                "start_ts_ms": 1700000000000,     # TODO: Set actual market start
-                "resolve_ts_ms": 1735000000000,   # TODO: Set actual resolution date
+                "asset_id_yes": asset_id_yes,
+                "asset_id_no": asset_id_no,
+                "start_ts_ms": start_ts_ms,
+                "resolve_ts_ms": resolve_ts_ms,
                 "wss_url": "wss://ws-subscriptions-clob.polymarket.com/ws/market"
             }
         }

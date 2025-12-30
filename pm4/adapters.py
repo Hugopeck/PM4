@@ -6,6 +6,14 @@ import os
 import sys
 from typing import Any, Dict, List
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    # dotenv not installed, skip .env loading
+    pass
+
 # ==========================================
 # PY-CLOB-CLIENT IMPORTS
 # ==========================================

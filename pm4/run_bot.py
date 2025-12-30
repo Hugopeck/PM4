@@ -14,7 +14,7 @@ import os
 import signal
 import sys
 
-from .adapters import ExchangeAdapter, PolymarketAdapter
+from .adapters import PolymarketAdapter
 from .config import load_config
 from .trading import MarketMakerBot
 

@@ -14,7 +14,27 @@ This guide shows you how to use PM4's **automated market analysis tools** for sa
 
 ## 📋 **Prerequisites**
 
-### Environment Setup
+### Python Environment Setup
+
+**First, ensure you're in the correct directory and have dependencies installed:**
+
+```bash
+# Navigate to PM4 project (note: capital PM4)
+cd /Users/hugopeck/PM4
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install/update dependencies (if not already done)
+pip install -r requirements.txt
+
+# Verify installation
+python -m pm4.market_analyzer --help
+```
+
+**Note:** On macOS, if `python` doesn't work, use `python3` or activate the venv first.
+
+### Environment Variables Setup
 ```bash
 # Set your Polymarket credentials (required for all tools)
 export PK="your_private_key_here"
@@ -244,42 +264,28 @@ Market Summary:
   Status: RECOMMENDED
 ```
 
-### **Step 3: Quick Config Review & Final Setup**
+### **Step 3: Automated Config Finalization**
 
-**Time Estimate**: 2 minutes
+**Time Estimate**: 30 seconds
 
-Review and finalize the generated configuration:
+The generated configuration is automatically populated with:
+- ✅ **Condition ID**: Extracted from Polymarket API
+- ✅ **Token IDs**: YES/NO token IDs from API response
+- ✅ **Timestamps**: Start and resolution dates converted automatically
+- ✅ **Bankroll**: Safe default ($50) or your custom amount
 
+**Review the generated config:**
 ```bash
-# Edit the generated config
-nano config_generated.json  # or your preferred editor
-```
-
-**Required Manual Updates:**
-1. **Asset IDs**: Get from Polymarket market page (Yes/No token addresses)
-2. **Timestamps**: Set actual market start and resolution dates
-3. **Bankroll**: Adjust if needed (default: $50 for safe testing)
-
-**Example final config:**
-```json
-{
-  "market": {
-    "market": "0x1234567890abcdef",        // Auto-filled
-    "asset_id_yes": "0x...",                 // MANUAL: Copy from Polymarket
-    "asset_id_no": "0x...",                  // MANUAL: Copy from Polymarket
-    "start_ts_ms": 1700000000000,           // MANUAL: Convert start date
-    "resolve_ts_ms": 1735000000000           // MANUAL: Convert end date
-  },
-  "risk": {
-    "bankroll_B": 50.0                       // Safe default for testing
-  }
-}
+# Quick review (optional)
+cat config_generated.json | jq '.market'
 ```
 
 **Rename and proceed:**
 ```bash
 mv config_generated.json config.json
 ```
+
+**Note**: All required fields are automatically filled from the Polymarket API. Only review if you want to adjust risk parameters or bankroll.
 
 ### **Step 4: Automated Calibration (Warmup)**
 
@@ -378,6 +384,64 @@ python -m pm4.run_bot config.json
 
 ## 🛠️ **Troubleshooting Guide**
 
+### **Setup & Installation Issues**
+
+#### **"ModuleNotFoundError: No module named 'requests'"**
+```bash
+❌ ModuleNotFoundError: No module named 'requests'
+```
+**Solution:** Activate the virtual environment and install dependencies:
+```bash
+# Navigate to PM4 project directory (note: capital PM4, not lowercase pm4)
+cd /Users/hugopeck/PM4
+
+# Activate virtual environment
+source venv/bin/activate
+
+# Install/update dependencies
+pip install -r requirements.txt
+
+# Now try again
+python -m pm4.market_analyzer "https://polymarket.com/market/market-name"
+```
+
+#### **"command not found: python"**
+```bash
+❌ zsh: command not found: python
+```
+**Solution:** Use `python3` on macOS, or activate venv:
+```bash
+# Option 1: Use python3 directly
+python3 -m pm4.market_analyzer "url"
+
+# Option 2: Activate venv (recommended)
+source venv/bin/activate
+python -m pm4.market_analyzer "url"
+```
+
+#### **"command not found: -m"**
+```bash
+❌ zsh: command not found: -m
+```
+**Solution:** You forgot `python` before `-m`:
+```bash
+# Wrong:
+-m pm4.market_analyzer "url"
+
+# Correct:
+python -m pm4.market_analyzer "url"
+# or with venv activated:
+source venv/bin/activate
+python -m pm4.market_analyzer "url"
+```
+
+#### **Wrong Directory**
+```bash
+# If you're in lowercase 'pm4' directory instead of 'PM4'
+cd /Users/hugopeck/PM4  # Note: capital letters
+source venv/bin/activate
+```
+
 ### **Common Issues**
 
 #### **"No calibration file found"**
@@ -467,93 +531,6 @@ python -m pm4.market_config_helper --interactive --skip-analysis
 
 *Last updated: December 29, 2024*
 
-## 🚀 **Automated 5-Minute Setup & Dry-Run Process**
-
-### **Step 1: Select a Test Market on Polymarket**
-
-**Time Estimate**: 5-10 minutes
-
-#### **Option A: Manual Market Selection**
-
-#### 1.1 Navigate to Polymarket
-- Open [https://polymarket.com](https://polymarket.com) in your browser
-- Ensure you're logged in to your account
-
-#### 1.2 Choose Market Type Carefully
-**Select from these categories:**
-- **Politics** (recommended for beginners)
-- **Sports** (good volatility)
-- **Crypto** (high volatility - advanced)
-- **Economics** (moderate volatility)
-
-**Avoid:**
-- ❌ Very short-term markets (< 24 hours)
-- ❌ Extremely low volume markets
-- ❌ Markets with < $10k total volume
-- ❌ Markets that resolve today
-
-#### 1.3 Evaluate Market Suitability
-
-**Check these indicators:**
-
-**Volume & Liquidity:**
-- Look for "Volume" > $50k in the last 24h
-- Check "Active Markets" count
-- Prefer markets with 100+ active traders
-
-**Price Action:**
-- Mid price should be between 0.10 and 0.90 (avoid extremes)
-- Avoid markets that haven't moved in 2+ hours
-- Look for recent price movement (last hour)
-
-**Time to Resolution:**
-- Should be 1+ weeks away (not days)
-- Markets resolving within 24 hours are too risky
-
-**Example Good Market:**
-```
-Market: "Will Ethereum reach $10k before 2025?"
-Volume: $125k (24h)
-Liquidity: High
-Mid Price: 0.35
-Time Left: 8 months
-```
-
-#### 1.4 Extract Market Information
-
-**From Polymarket URL:**
-```
-https://polymarket.com/market/ethereum-to-10k-before-2025
-```
-
-**You need:**
-- **Condition ID**: The long hex string in the URL
-- **Yes Token ID**: Click "Yes" outcome → get contract address
-- **No Token ID**: Click "No" outcome → get contract address
-- **Resolve Date**: Market resolution date
-
-**Update your `config.json`:**
-```json
-{
-  "market": {
-    "market": "0x0123456789abcdef...",
-    "asset_id_yes": "0xabcdef1234567890...",
-    "asset_id_no": "0xfedcba9876543210...",
-    "start_ts_ms": 1700000000000,
-    "resolve_ts_ms": 1735000000000
-  }
-}
-```
-
-#### **Option B: Automated Market Analysis (Recommended)**
-
-Use PM4's built-in market analyzer for objective evaluation:
-
-```bash
-# Analyze a specific market
-python -m pm4.market_analyzer "ethereum-to-10k-before-2025"
-```
-
 **Example Output:**
 ```
 ==================================================
@@ -582,9 +559,15 @@ DETAILED ANALYSIS:
 
 **Automated Config Generation:**
 ```bash
-# Generate config template automatically
+# Generate complete config automatically with all fields auto-filled
 python -m pm4.market_config_helper "https://polymarket.com/market/ethereum-to-10k-before-2025"
 ```
+
+The config helper automatically extracts:
+- ✅ Condition ID from API
+- ✅ YES/NO Token IDs from API  
+- ✅ Start and resolution timestamps from API dates
+- ✅ Market analysis data embedded in config
 
 ---
 
