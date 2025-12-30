@@ -159,8 +159,8 @@ def format_config_for_market(market_slug: str, custom_bankroll: Optional[float] 
             "enable_performance": True,
             "enable_context_tracking": False
         },
-        "log_path": "./data/mm_events.jsonl",
-        "calib_path": "./data/warm_calibration.json"
+        "log_path": "./data/logs/mm_events.jsonl",
+        "calib_path": "./data/calibration/warm_calibration.json"
     }
 
     config.update(base_config)
@@ -210,8 +210,10 @@ def interactive_config_setup():
     print(f"  Current Price: {analysis['current_price']:.3f}")
     print(f"  Recommendation: {analysis['recommendation']}")
 
-    # Save config
-    output_file = "config_generated.json"
+    # Save config to temp directory
+    import os
+    os.makedirs("data/temp", exist_ok=True)
+    output_file = "data/temp/config_generated.json"
     with open(output_file, 'w') as f:
         json.dump(config, f, indent=2)
 
@@ -244,8 +246,8 @@ def main():
 
     parser.add_argument(
         "--output", "-o",
-        default="config_generated.json",
-        help="Output config file path"
+        default="data/temp/config_generated.json",
+        help="Output config file path (default: data/temp/config_generated.json)"
     )
 
     parser.add_argument(

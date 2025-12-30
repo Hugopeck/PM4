@@ -21,6 +21,6 @@ def load_config(path: str) -> BotConfig:
         risk=risk,
         quote=quote,
         logging=logging,
-        log_path=d.get("log_path", "./data/mm_events.jsonl"),
-        calib_path=d.get("calib_path", "./data/warm_calibration.json"),
+        log_path=d.get("log_path", "./data/logs/mm_events.jsonl"),
+        calib_path=d.get("calib_path", "./data/calibration/warm_calibration.json"),
     )

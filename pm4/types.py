@@ -89,5 +89,5 @@ class BotConfig:
     risk: RiskConfig
     quote: QuoteConfig
     logging: LoggingConfig = field(default_factory=LoggingConfig)
-    log_path: str = "./data/mm_events.jsonl"
-    calib_path: str = "./data/warm_calibration.json"
+    log_path: str = "./data/logs/mm_events.jsonl"
+    calib_path: str = "./data/calibration/warm_calibration.json"

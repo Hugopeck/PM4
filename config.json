@@ -73,7 +73,7 @@
 
   "_file_paths": {
     "_comment": "Output file locations",
-    "log_path": "./data/mm_events.jsonl",
-    "calib_path": "./data/warm_calibration.json"
+    "log_path": "./data/logs/mm_events.jsonl",
+    "calib_path": "./data/calibration/warm_calibration.json"
   }
 }

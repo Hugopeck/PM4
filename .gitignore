@@ -11,3 +11,5 @@ sigma to lambda rel.md
 tunning per marchetype.md
 Marchetypes.md
 PM4.md
+# Explicit temp folder (data/ already ignored, but being explicit)
+data/temp/
