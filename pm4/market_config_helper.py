@@ -9,10 +9,162 @@ import argparse
 import json
 import re
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, Any, List
 
 from .market_analyzer import MarketAnalyzer
 from .utils import date_to_timestamp, timestamp_to_date
+
+
+# Parameter ranges based on PM4 documentation and recommendations
+PARAMETER_RANGES: Dict[str, Dict[str, Tuple[float, float]]] = {
+    "warmup": {
+        "dt_sample_s": (1.0, 10.0),
+        "min_return_samples": (120, 720),
+        "max_warmup_s": (1800.0, 7200.0),
+        "tau_fast_s": (10.0, 60.0),
+        "tau_slow_s": (600.0, 3600.0),
+        "markout_h1_s": (5.0, 30.0),
+        "markout_h2_s": (30.0, 300.0),
+    },
+    "risk": {
+        "bankroll_B": (10.0, 100.0),
+        "n_plays": (1, 4),
+        "eta_time": (0.25, 0.75),
+        "slippage_buffer": (0.02, 0.12),
+        "gamma_a": (0.8, 1.2),
+        "gamma_max": (5.0, 10.0),
+        "lambda_min": (0.5, 1.0),
+        "lambda_max": (1.5, 3.0),
+        "beta_p": (0.3, 1.0),
+        "alpha_U": (0.2, 0.8),
+        "U_ref": (10.0, 100.0),
+        "w_A": (0.5, 2.0),
+        "w_L": (0.5, 2.0),
+        "s_scale": (0.5, 2.0),
+        "I_max": (1.0, 5.0),
+        "c_tox": (0.5, 2.0),
+        "c_sigma": (0.5, 2.0),
+        "nu_sigma": (1.0, 2.0),
+        "sigma_max": (3.0, 10.0),
+        "sigma_tau_up_s": (5.0, 30.0),
+        "sigma_tau_down_s": (30.0, 300.0),
+    },
+    "quote": {
+        "c_risk": (0.1, 0.5),
+        "kappa0": (0.5, 2.0),
+        "rate_ref_per_s": (0.01, 0.2),
+        "min_half_spread_prob": (0.005, 0.02),
+        "max_half_spread_logit": (1.0, 3.0),
+        "ladder_decay": (0.7, 0.9),
+        "ladder_step_mult": (0.3, 0.7),
+        "ladder_min_step_logit": (0.02, 0.1),
+        "ladder_max_levels": (3, 8),
+        "min_order_size": (0.1, 5.0),
+        "max_order_notional_side": (50.0, 500.0),
+        "refresh_s": (1.0, 5.0),
+        "price_move_requote_ticks": (1, 5),
+    },
+}
+
+
+def clamp_value(value: float, min_val: float, max_val: float) -> float:
+    """Clamp a value to the specified range."""
+    return max(min_val, min(max_val, value))
+
+
+def validate_parameter(section: str, param_name: str, value: Any, strict: bool = False) -> Any:
+    """
+    Validate a parameter value against its documented range.
+    
+    Args:
+        section: Configuration section name (e.g., 'warmup', 'risk', 'quote')
+        param_name: Parameter name
+        value: Parameter value to validate
+        strict: If True, raise ValueError on out-of-range. If False, clamp to range.
+    
+    Returns:
+        Validated (and potentially clamped) value
+    
+    Raises:
+        ValueError: If strict=True and value is out of range
+        KeyError: If section or param_name not found in ranges
+    """
+    if section not in PARAMETER_RANGES:
+        return value
+    
+    if param_name not in PARAMETER_RANGES[section]:
+        return value  # No validation defined for this parameter
+    
+    min_val, max_val = PARAMETER_RANGES[section][param_name]
+    
+    # Convert to float for comparison
+    float_value = float(value)
+    
+    if strict:
+        if float_value < min_val or float_value > max_val:
+            raise ValueError(
+                f"Parameter {section}.{param_name} = {value} is out of range "
+                f"[{min_val}, {max_val}]"
+            )
+        return value
+    else:
+        # Clamp to valid range
+        clamped = clamp_value(float_value, min_val, max_val)
+        if clamped != float_value:
+            print(f"Warning: {section}.{param_name} = {value} clamped to {clamped} "
+                  f"(valid range: [{min_val}, {max_val}])")
+        # Return original type (int if it was int, float if it was float)
+        if isinstance(value, int) and clamped == int(clamped):
+            return int(clamped)
+        return clamped
+
+
+def validate_config(config: Dict[str, Any], strict: bool = False) -> Tuple[bool, List[str]]:
+    """
+    Validate all parameters in a configuration dictionary.
+    
+    Args:
+        config: Configuration dictionary to validate
+        strict: If True, raise ValueError on first out-of-range parameter.
+                If False, clamp values and collect warnings.
+    
+    Returns:
+        Tuple of (is_valid, warnings_list)
+    
+    Raises:
+        ValueError: If strict=True and any parameter is out of range
+    """
+    warnings: List[str] = []
+    
+    for section_name, section_ranges in PARAMETER_RANGES.items():
+        if section_name not in config:
+            continue
+            
+        section_config = config[section_name]
+        
+        for param_name in section_ranges:
+            if param_name not in section_config:
+                continue
+            
+            try:
+                original_value = section_config[param_name]
+                validated_value = validate_parameter(
+                    section_name, param_name, original_value, strict=strict
+                )
+                
+                if validated_value != original_value:
+                    section_config[param_name] = validated_value
+                    if not strict:
+                        warnings.append(
+                            f"{section_name}.{param_name}: {original_value} -> {validated_value}"
+                        )
+                        
+            except ValueError as e:
+                if strict:
+                    raise
+                warnings.append(str(e))
+    
+    return (len(warnings) == 0, warnings)
 
 
 def extract_market_slug(url: str) -> str:
@@ -104,6 +256,8 @@ def format_config_for_market(market_slug: str, custom_bankroll: Optional[float] 
 
     # Use custom bankroll if provided, otherwise use safe default
     bankroll = custom_bankroll if custom_bankroll is not None else 50.0
+    # Validate and clamp bankroll to valid range
+    bankroll = validate_parameter("risk", "bankroll_B", bankroll, strict=False)
 
     # Add the rest of the config with the bankroll
     base_config = {
@@ -120,9 +274,9 @@ def format_config_for_market(market_slug: str, custom_bankroll: Optional[float] 
             "bankroll_B": bankroll,
             "n_plays": 3,
             "eta_time": 0.5,
-            "slippage_buffer": 0.10,
-            "gamma_a": 1.0,
-            "gamma_max": 50.0,
+            "slippage_buffer": 0.05,
+            "gamma_a": 0.8,
+            "gamma_max": 8.0,
             "lambda_min": 0.8,
             "lambda_max": 2.0,
             "beta_p": 0.7,
@@ -164,6 +318,14 @@ def format_config_for_market(market_slug: str, custom_bankroll: Optional[float] 
     }
 
     config.update(base_config)
+    
+    # Validate all parameters in the generated config
+    is_valid, warnings = validate_config(config, strict=False)
+    if warnings:
+        print("\n⚠️  Parameter validation warnings (values clamped to valid ranges):")
+        for warning in warnings:
+            print(f"  - {warning}")
+    
     return config
 
 
@@ -191,10 +353,14 @@ def interactive_config_setup():
             break
         try:
             bankroll = float(bankroll_input)
-            if bankroll > 0:
+            # Validate against range
+            try:
+                bankroll = validate_parameter("risk", "bankroll_B", bankroll, strict=True)
                 break
-            else:
-                print("✗ Bankroll must be positive")
+            except ValueError as e:
+                print(f"✗ {e}")
+                min_val, max_val = PARAMETER_RANGES["risk"]["bankroll_B"]
+                print(f"  Valid range: ${min_val}-${max_val}")
         except ValueError:
             print("✗ Please enter a valid number")
 
@@ -256,6 +422,12 @@ def main():
         help="Run interactive setup"
     )
 
+    parser.add_argument(
+        "--strict", "-s",
+        action="store_true",
+        help="Strict validation mode (raise errors instead of clamping values)"
+    )
+
     args = parser.parse_args()
 
     if args.interactive or not args.market_url:
@@ -272,6 +444,16 @@ def main():
     # Generate config
     print(f"Analyzing market: {market_slug}")
     config = format_config_for_market(market_slug, args.bankroll)
+    
+    # Validate config (will clamp or raise depending on strict mode)
+    try:
+        is_valid, warnings = validate_config(config, strict=args.strict)
+        if args.strict and not is_valid:
+            print("✗ Configuration validation failed")
+            return
+    except ValueError as e:
+        print(f"✗ Configuration validation error: {e}")
+        return
 
     # Save to file
     with open(args.output, 'w') as f:
