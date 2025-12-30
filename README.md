@@ -1,7 +1,7 @@
 # PM4 - Prediction Market's Market Maker
 
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Version](https://img.shields.io/badge/version-0.1.2-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-0.1.3-blue.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 A high-frequency market making bot implementing the **PM4 model**: an Avellaneda-Stoikov inspired quantitative framework specifically adapted for prediction markets. Combines position sizing, real-time toxicity detection, and marchetype-aware structural risk adjustment.
@@ -158,28 +158,56 @@ PM4 includes automated tools to help you select suitable markets and generate co
 # Accepts both full URLs and market slugs
 python -m pm4.market_analyzer "https://polymarket.com/market/ethereum-to-10k-before-2025"
 # OR: python -m pm4.market_analyzer "ethereum-to-10k-before-2025"
+
+# Save report to file
+python -m pm4.market_analyzer "market-url" --output "report.txt"
 ```
 
 **Example Output:**
 ```
-==================================================
-MARKET ANALYSIS: ethereum-to-10k-before-2025
-==================================================
+======================================================================
+MARKET STATUS REPORT: ethereum-to-10k-before-2025
+======================================================================
 Condition ID: 0x1234567890abcdef
-Current Price: 0.350
-24h Volume: $125,430
-Active Traders: 234
+Start Date: 2025-01-01T00:00:00Z
+End Date: 2025-12-31T23:59:59Z
+
+──────────────────────────────────────────────────────────────────────
+DEFINITIONS
+──────────────────────────────────────────────────────────────────────
+Spread: Difference between best ask and best bid prices.
+        Lower spread = tighter market = easier to profit from market making.
+        Typical range: 0.5-5% (0.005-0.05 in probability space).
+
+Liquidity: Available capital in order book (CLOB) or AMM pool.
+          Higher liquidity = easier to enter/exit positions without slippage.
+          Typical range: $1k-$100k+ for active markets.
+
+──────────────────────────────────────────────────────────────────────
+CORE MARKET MAKING METRICS
+──────────────────────────────────────────────────────────────────────
+Order Book:
+  Best Bid:  0.3450 (34.50%)
+  Best Ask:  0.3550 (35.50%)
+  Spread:    0.0100 (1.00%)
+  Context:   Moderate spread (typical: 0.5-2%)
+
+Liquidity:
+  CLOB: $45,230
+  Context: Moderate liquidity (typical: $1k-$100k+)
+
+Current Price: 0.3500 (35.00%)
+  Context: Mid-range price (20-80%) - typical for market making
+
+──────────────────────────────────────────────────────────────────────
+ACTIVITY METRICS
+──────────────────────────────────────────────────────────────────────
+24h Volume:
+  Total: $125,430
+  Context: High volume (typical: $10k-$500k+ per day)
+
 Last Trade: 0.8 hours ago
-Time to Resolution: 245 days
-Price Range (24h): 0.330 - 0.380
-
-RECOMMENDATION: RECOMMENDED
-
-DETAILED ANALYSIS:
-  ✓ Excellent volume: $125,430
-  ✓ High trader count: 234
-  ✓ Moderate time horizon: 245 days
-  ✓ Price in good range: 0.35
+  Context: Recent activity (typical: < 6 hours)
 ```
 
 #### **Generate Configuration Templates:**
@@ -193,10 +221,12 @@ python -m pm4.market_config_helper --interactive
 
 **Benefits:**
 - Fully automated market evaluation based on comprehensive API data
+- Factual status reporting with definitions and context (no arbitrary scoring)
 - Automatic extraction of market IDs, token IDs, and timestamps from Polymarket
-- Objective recommendations based on volume, liquidity, activity, and order book metrics
+- Metrics organized by importance with typical ranges for interpretation
 - Complete configuration generation with embedded market analysis
 - Interactive workflow for guided setup
+- Save reports to file with `--output` flag
 
 ### Running
 

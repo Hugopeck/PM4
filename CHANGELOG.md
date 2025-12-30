@@ -15,6 +15,15 @@
   - Trade inter-arrival time distribution analysis
   - Return autocorrelation half-life estimation for volatility clustering detection
   - Real-time activity pattern recognition for parameter optimization
+- **Improved Market Analyzer**: Factual status reporting with definitions and context
+  - Removed arbitrary scoring system - replaced with factual metrics and context
+  - Added definitions section explaining spread, liquidity, volume, CLOB vs AMM
+  - Reorganized report by importance: core metrics (spread, liquidity) first
+  - Added typical ranges and context for all metrics (e.g., "typical: $1k-$100k+")
+  - Removed subjective labels (Excellent/Good/Low) - replaced with factual descriptions
+  - Changed recommendation system to factual status (VIABLE/MARGINAL/LIMITED)
+  - Added `--output` flag to save reports to file (`data/temp/` by default)
+  - Enhanced price extraction to prioritize bid/ask mid-price calculation
 
 ### Technical Details
 - **Meta-Calibration Algorithm**: Analyzes 100+ activity metrics to optimize 5 warmup parameters
@@ -132,7 +141,7 @@ PM4 follows [Semantic Versioning](https://semver.org/):
 - **MINOR** version for backwards-compatible functionality additions
 - **PATCH** version for backwards-compatible bug fixes
 
-### Current Version: 0.1.2
+### Current Version: 0.1.3
 
 **Version History:**
 - `0.1.x`: Human-in-the-loop workflow and market analysis tools

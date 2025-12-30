@@ -71,42 +71,54 @@ python -m pm4.market_analyzer "https://polymarket.com/market/will-ethereum-reach
 python -m pm4.market_analyzer "will-ethereum-reach-10k-before-2025"
 ```
 
-**What it analyzes:**
-- 📊 **Volume**: 24h trading volume ($50k+ recommended)
-- 👥 **Traders**: Active participants (100+ recommended)
-- ⏰ **Activity**: Recent trades (within 2 hours preferred)
-- 📅 **Time Horizon**: Days until resolution (30+ days preferred)
-- 💰 **Price Position**: Current price vs extremes (0.15-0.85 preferred)
+**What it reports:**
+- 📊 **Core Metrics**: Spread, liquidity, current price (most important for market making)
+- 📈 **Activity Metrics**: 24h volume, recent trades, price changes
+- 🏗️ **Market Structure**: Time to resolution, dates
+- 📚 **Definitions**: Explains key terms (spread, liquidity, CLOB vs AMM)
+- 📊 **Context**: Typical ranges for each metric to help interpretation
 
-**Scoring System:**
-- **RECOMMENDED** (5-7 points): Safe for PM4 trading
-- **CONDITIONAL** (3-4 points): May work with caution
-- **NOT RECOMMENDED** (0-2 points): Avoid this market
+**Status Levels:**
+- **VIABLE**: Market has liquidity, tight spread, activity, and sufficient time
+- **MARGINAL**: Market has some requirements but may be challenging
+- **LIMITED**: Market lacks critical requirements for market making
+- **NO_DATA**: Unable to fetch market data
 
 **Example Output:**
 ```
-Analyzing market: will-ethereum-reach-10k-before-2025
-==================================================
-MARKET ANALYSIS: will-ethereum-reach-10k-before-2025
-==================================================
+======================================================================
+MARKET STATUS REPORT: will-ethereum-reach-10k-before-2025
+======================================================================
 Condition ID: 0x1234567890abcdef
-Current Price: 0.350
-24h Volume: $125,430
-Active Traders: 234
-Last Trade: 0.8 hours ago
-Time to Resolution: 245 days
-Price Range (24h): 0.330 - 0.380
+Start Date: 2025-01-01T00:00:00Z
+End Date: 2025-12-31T23:59:59Z
 
-RECOMMENDATION: RECOMMENDED
+──────────────────────────────────────────────────────────────────────
+DEFINITIONS
+──────────────────────────────────────────────────────────────────────
+Spread: Difference between best ask and best bid prices.
+        Lower spread = tighter market = easier to profit from market making.
+        Typical range: 0.5-5% (0.005-0.05 in probability space).
 
-DETAILED ANALYSIS:
-  ✓ Excellent volume: $125,430
-  ✓ High trader count: 234
-  ✓ Moderate time horizon: 245 days
-  ✓ Price in good range: 0.35
+Liquidity: Available capital in order book (CLOB) or AMM pool.
+          Higher liquidity = easier to enter/exit positions without slippage.
+          Typical range: $1k-$100k+ for active markets.
 
-✅ SUITABLE FOR PM4 MARKET MAKING
-  Proceed with warmup and dry-run testing
+──────────────────────────────────────────────────────────────────────
+CORE MARKET MAKING METRICS
+──────────────────────────────────────────────────────────────────────
+Order Book:
+  Best Bid:  0.3450 (34.50%)
+  Best Ask:  0.3550 (35.50%)
+  Spread:    0.0100 (1.00%)
+  Context:   Moderate spread (typical: 0.5-2%)
+
+Liquidity:
+  CLOB: $45,230
+  Context: Moderate liquidity (typical: $1k-$100k+)
+
+Current Price: 0.3500 (35.00%)
+  Context: Mid-range price (20-80%) - typical for market making
 ```
 
 ### **2. Market Config Helper CLI (`pm4.market_config_helper`)**
@@ -151,7 +163,7 @@ Market Summary:
   Volume: $125,430
   Traders: 234
   Price: 0.350
-  Status: RECOMMENDED
+  Status: VIABLE
 ```
 
 ### **3. Interactive Config Helper (`pm4.market_config_helper --interactive`)**
@@ -185,7 +197,7 @@ Market Analysis:
   Volume (24h): $125,430
   Active Traders: 234
   Current Price: 0.350
-  Recommendation: RECOMMENDED
+  Status: VIABLE
 
 Enter bankroll amount (USD) [50]: 100
 
@@ -215,26 +227,35 @@ Use PM4's market analyzer to automatically evaluate market suitability:
 python -m pm4.market_analyzer "https://polymarket.com/market/will-ethereum-reach-10k-before-2025"
 ```
 
-**What happens automatically:**
-- ✅ **Volume Check**: Validates 24h volume > $50k
-- ✅ **Trader Activity**: Confirms 100+ active participants
-- ✅ **Recent Movement**: Ensures market traded within 2 hours
-- ✅ **Time Horizon**: Verifies 30+ days until resolution
-- ✅ **Price Position**: Checks price between 0.15-0.85
+**What the report provides:**
+- ✅ **Definitions**: Explains spread, liquidity, volume, CLOB vs AMM
+- ✅ **Core Metrics**: Spread, liquidity, price with context and typical ranges
+- ✅ **Activity Data**: Volume, recent trades, price changes
+- ✅ **Market Structure**: Time to resolution, dates
+- ✅ **Context**: Each metric includes typical ranges for interpretation
 
 **Expected Output:**
 ```
 Analyzing market: will-ethereum-reach-10k-before-2025
-==================================================
-RECOMMENDATION: RECOMMENDED
-✅ SUITABLE FOR PM4 MARKET MAKING
-==================================================
+──────────────────────────────────────────────────────────────────────
+CORE MARKET MAKING METRICS
+──────────────────────────────────────────────────────────────────────
+Order Book:
+  Best Bid:  0.3450 (34.50%)
+  Best Ask:  0.3550 (35.50%)
+  Spread:    0.0100 (1.00%)
+  Context:   Moderate spread (typical: 0.5-2%)
+
+Liquidity:
+  CLOB: $45,230
+  Context: Moderate liquidity (typical: $1k-$100k+)
 ```
 
-**❌ If NOT RECOMMENDED:**
-- Choose a different market from Polymarket
-- Look for markets with higher volume/trader counts
-- Avoid markets resolving within 24 hours
+**How to interpret:**
+- Review core metrics first (spread, liquidity) - these are most important
+- Check context lines to see if metrics are in typical ranges
+- Look for markets with tight spreads (< 2%) and good liquidity (> $10k)
+- Ensure sufficient time to resolution (30+ days preferred)
 
 ### **Step 2: Automated Configuration Generation**
 
@@ -261,7 +282,7 @@ Market Summary:
   Volume: $125,430
   Traders: 234
   Price: 0.350
-  Status: RECOMMENDED
+  Status: VIABLE
 ```
 
 ### **Step 3: Automated Config Finalization**
@@ -396,14 +417,14 @@ No orders will be placed. Watching market and printing theoretical quotes...
 - Meta-calibration completed successfully (shows market activity analysis)
 - Calibration completed successfully (360+ samples)
 - Dry-run shows reasonable quotes (not too wide, logical pricing)
-- Market analysis was "RECOMMENDED"
+- Market analysis shows "VIABLE" status with tight spread and good liquidity
 - Meta-calibration parameters look reasonable for market conditions
 
 **❌ DO NOT GO LIVE if:**
 - Meta-calibration failed (using config defaults only)
 - Calibration failed or shows extreme volatility
 - Dry-run quotes seem wrong (spreads too wide, illogical prices)
-- Market analysis was "NOT RECOMMENDED"
+- Market analysis shows "LIMITED" or "NO_DATA" status
 - Meta-calibration shows extreme parameter values
 
 ### **Step 7: Live Trading (If Approved)**
@@ -491,11 +512,11 @@ source venv/bin/activate
 ```
 **Solution:** Run warmup first: `python -m pm4.warmup config.json`
 
-#### **Market Not Recommended**
+#### **Market Status Shows LIMITED or NO_DATA**
 ```
-RECOMMENDATION: NOT_RECOMMENDED
+Status: LIMITED
 ```
-**Solution:** Choose a different market with higher volume/activity
+**Solution:** Choose a different market with higher volume/activity, tighter spread, or better liquidity
 
 #### **Poor Calibration Quality**
 ```
@@ -535,7 +556,7 @@ python -m pm4.market_config_helper --interactive --skip-analysis
 
 ### **Good Automated Setup**
 ```
-✅ Market Analysis: RECOMMENDED
+✅ Market Analysis: VIABLE
 ✅ Config Generation: Successful
 ✅ Calibration: 360+ samples, sigma 1.0-2.0
 ✅ Dry-Run: Quotes look reasonable
@@ -576,28 +597,49 @@ python -m pm4.market_config_helper --interactive --skip-analysis
 
 **Example Output:**
 ```
-==================================================
-MARKET ANALYSIS: ethereum-to-10k-before-2025
-==================================================
+======================================================================
+MARKET STATUS REPORT: ethereum-to-10k-before-2025
+======================================================================
 Condition ID: 0x1234567890abcdef
-Current Price: 0.350
-24h Volume: $125,430
-Active Traders: 234
+Start Date: 2025-01-01T00:00:00Z
+End Date: 2025-12-31T23:59:59Z
+
+──────────────────────────────────────────────────────────────────────
+DEFINITIONS
+──────────────────────────────────────────────────────────────────────
+Spread: Difference between best ask and best bid prices.
+        Lower spread = tighter market = easier to profit from market making.
+        Typical range: 0.5-5% (0.005-0.05 in probability space).
+
+Liquidity: Available capital in order book (CLOB) or AMM pool.
+          Higher liquidity = easier to enter/exit positions without slippage.
+          Typical range: $1k-$100k+ for active markets.
+
+──────────────────────────────────────────────────────────────────────
+CORE MARKET MAKING METRICS
+──────────────────────────────────────────────────────────────────────
+Order Book:
+  Best Bid:  0.3450 (34.50%)
+  Best Ask:  0.3550 (35.50%)
+  Spread:    0.0100 (1.00%)
+  Context:   Moderate spread (typical: 0.5-2%)
+
+Liquidity:
+  CLOB: $45,230
+  Context: Moderate liquidity (typical: $1k-$100k+)
+
+Current Price: 0.3500 (35.00%)
+  Context: Mid-range price (20-80%) - typical for market making
+
+──────────────────────────────────────────────────────────────────────
+ACTIVITY METRICS
+──────────────────────────────────────────────────────────────────────
+24h Volume:
+  Total: $125,430
+  Context: High volume (typical: $10k-$500k+ per day)
+
 Last Trade: 0.8 hours ago
-Time to Resolution: 245 days
-Price Range (24h): 0.330 - 0.380
-
-RECOMMENDATION: RECOMMENDED
-
-DETAILED ANALYSIS:
-  ✓ Excellent volume: $125,430
-  ✓ High trader count: 234
-  ✓ Moderate time horizon: 245 days
-  ✓ Price in good range: 0.35
-
-✅ SUITABLE FOR PM4 MARKET MAKING
-  Proceed with warmup and dry-run testing
-==================================================
+  Context: Recent activity (typical: < 6 hours)
 ```
 
 **Automated Config Generation:**
